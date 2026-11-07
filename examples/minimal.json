@@ -1,0 +1,10 @@
+{
+  "skills": [
+    { "label": "Python" },
+    { "label": "React" },
+    { "label": "TypeScript" },
+    { "label": "Docker" }
+  ],
+  "board_columns": 8,
+  "title": "MY TOOLS"
+}

@@ -1,0 +1,16 @@
+{
+  "skills": [
+    { "label": "Python", "color": "#ff6b6b" },
+    { "label": "React", "color": "#4ecdc4" },
+    { "label": "TypeScript", "color": "#45b7d1" },
+    { "label": "Docker", "color": "#96ceb4" },
+    { "label": "FastAPI", "color": "#ffeaa7" },
+    { "label": "Prisma", "color": "#dfe6e9" }
+  ],
+  "board_columns": 10,
+  "seed": 42,
+  "step": 0.05,
+  "stagger": 0.18,
+  "title": "TOOLKIT",
+  "background": "#1a1a2e"
+}
