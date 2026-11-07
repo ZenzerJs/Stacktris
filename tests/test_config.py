@@ -1,0 +1,116 @@
+"""Tests for Stacktris configuration loading and validation."""
+
+import json
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from stacktris.config import Config, SkillEntry, default_config, load_config
+
+
+class TestSkillEntry:
+    def test_valid_entry(self):
+        s = SkillEntry(label="Python", color="#3776ab", icon="python")
+        assert s.label == "Python"
+
+    def test_invalid_color(self):
+        with pytest.raises(ValueError, match="invalid hex colour"):
+            SkillEntry(label="X", color="red", icon="python")
+
+    def test_empty_label(self):
+        with pytest.raises(ValueError, match="non-empty"):
+            SkillEntry(label="", color="#aabbcc", icon="python")
+
+
+class TestConfig:
+    def test_valid_config(self):
+        cfg = Config(
+            skills=[SkillEntry(label="Python", color="#3776ab", icon="python")],
+        )
+        assert len(cfg.skills) == 1
+
+    def test_empty_skills(self):
+        with pytest.raises(ValueError, match="at least one"):
+            Config(skills=[])
+
+    def test_invalid_background(self):
+        with pytest.raises(ValueError, match="invalid hex"):
+            Config(
+                skills=[SkillEntry(label="X", color="#aabbcc", icon="python")],
+                background="notacolor",
+            )
+
+    def test_small_cell_size(self):
+        with pytest.raises(ValueError, match="cell_size"):
+            Config(
+                skills=[SkillEntry(label="X", color="#aabbcc", icon="python")],
+                cell_size=5,
+            )
+
+
+class TestDefaultConfig:
+    def test_returns_24_skills(self):
+        cfg = default_config()
+        assert len(cfg.skills) == 24
+
+    def test_demo_order(self):
+        cfg = default_config()
+        assert cfg.skills[0].label == "VERCEL"
+        assert cfg.skills[-1].label == "PYTHON"
+
+    def test_html_css_purple(self):
+        cfg = default_config()
+        html_css = next(s for s in cfg.skills if s.label == "HTML/CSS")
+        assert html_css.color == "#8b5cf6"
+
+
+class TestLoadConfig:
+    def test_load_valid(self):
+        data = {
+            "skills": [{"label": "Python"}, {"label": "Docker"}],
+            "board_columns": 8,
+        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            f.flush()
+            cfg = load_config(f.name)
+        assert len(cfg.skills) == 2
+        assert cfg.board_columns == 8
+        Path(f.name).unlink()
+
+    def test_load_missing_skills(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump({"board_columns": 8}, f)
+            f.flush()
+            with pytest.raises(ValueError, match="skills"):
+                load_config(f.name)
+        Path(f.name).unlink()
+
+    def test_load_empty_skills(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump({"skills": []}, f)
+            f.flush()
+            with pytest.raises(ValueError, match="non-empty"):
+                load_config(f.name)
+        Path(f.name).unlink()
+
+    def test_load_custom_colors(self):
+        data = {
+            "skills": [{"label": "Python", "color": "#ff0000"}],
+        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            f.flush()
+            cfg = load_config(f.name)
+        assert cfg.skills[0].color == "#ff0000"
+        Path(f.name).unlink()
+
+    def test_unknown_skill_no_color(self):
+        data = {"skills": [{"label": "FakeSkill"}]}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            f.flush()
+            with pytest.raises(ValueError, match="not built-in"):
+                load_config(f.name)
+        Path(f.name).unlink()

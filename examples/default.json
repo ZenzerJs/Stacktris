@@ -1,0 +1,32 @@
+{
+  "skills": [
+    { "label": "Vercel" },
+    { "label": "Docker" },
+    { "label": "GitHub Actions" },
+    { "label": "Prisma" },
+    { "label": "SQLite" },
+    { "label": "Vitest" },
+    { "label": "Playwright" },
+    { "label": "Typst" },
+    { "label": "LangChain" },
+    { "label": "LangGraph" },
+    { "label": "Ollama" },
+    { "label": "FastAPI" },
+    { "label": "PyTorch" },
+    { "label": "MediaPipe" },
+    { "label": "Node.js" },
+    { "label": "Tailwind" },
+    { "label": "React" },
+    { "label": "Next.js" },
+    { "label": "HTML/CSS" },
+    { "label": "Java" },
+    { "label": "Swift" },
+    { "label": "JavaScript" },
+    { "label": "TypeScript" },
+    { "label": "Python" }
+  ],
+  "seed": 11,
+  "board_columns": 14,
+  "cell_size": 56,
+  "title": "STACK"
+}
