@@ -240,7 +240,7 @@ python3 -m pytest tests/ -v
 
 ## Licence
 
-Original code is [MIT](LICENSE) licensed. Copyright (c) 2026 Jayden Saha.
+Original code is [MIT](LICENSE) licensed. Copyright (c) 2026 ZenzerJs.
 
 Brand logos are sourced from [Simple Icons](https://simpleicons.org) (CC0-1.0
 artwork licence). Individual brand marks remain trademarks of their respective
