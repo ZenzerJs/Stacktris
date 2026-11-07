@@ -1,39 +1,77 @@
-# Stacktris
+<div align="center">
 
-Generate animated falling-block tech-stack graphics for your README.
+# 🧱 Stacktris
 
-<p align="center">
-  <img src="docs/demo.gif" alt="Stacktris demo — animated GIF showing tetromino-shaped tech-skill pieces falling into a bevelled tile board" width="864" />
-</p>
+**Generate falling-block tech-stack graphics for your README.**
 
-<p align="center"><em>Supplied animated demo (153 frames, ~12 s). The generated SVG
-plays the same falling animation natively via CSS keyframes.</em></p>
+[![CI](https://github.com/ZenzerJs/Stacktris/actions/workflows/ci.yml/badge.svg)](https://github.com/ZenzerJs/Stacktris/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Pick your skills, colours, and drop timing — Stacktris packs them as
-tetromino-shaped pieces onto a bevelled tile board with brand logos, CSS
-keyframe falling animations, and `prefers-reduced-motion` support. The output
-is a single standalone SVG with no external dependencies — paste it straight
-into your GitHub profile README.
+<img src="docs/demo.gif" alt="Stacktris demo — animated GIF showing tetromino-shaped tech-skill pieces falling into a bevelled tile board with brand logos" width="900" />
 
-> **Animated preview vs. SVG output:** The GIF above is a pre-recorded
-> animation preview. The actual generator produces a standalone `.svg` file
-> whose falling animation is driven by CSS `@keyframes` — it respects
-> `prefers-reduced-motion` and renders at full resolution. See
-> [`output/stack.svg`](output/stack.svg) for the generated default.
+<sub>Animated demo of the default 24-skill board. The generated SVG plays the same falling animation via CSS keyframes.</sub>
 
-## Quickstart
+</div>
+
+---
+
+## 📋 Contents
+
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Getting Started](#-getting-started)
+- [Usage](#-usage)
+- [Configuration](#-configuration)
+- [Supported Skills](#-supported-skills)
+- [Embedding in Your README](#-embedding-in-your-readme)
+- [Architecture](#-architecture)
+- [Repository Layout](#-repository-layout)
+- [Accessibility](#-accessibility)
+- [Limitations](#-limitations)
+
+---
+
+## 💡 Overview
+
+Pick your skills, colours, and drop timing — Stacktris packs them as tetromino-shaped pieces onto a bevelled tile board with brand logos and a CSS keyframe falling animation. The output is a single standalone `.svg` with no external dependencies.
+
+| What it does | How |
+|---|---|
+| Tetris-style skill board with tile bevels and grid | Tetromino packing engine with validated no-overlap geometry |
+| Real brand logos from [Simple Icons](https://simpleicons.org) | 24 embedded SVG paths — no external fetches |
+| Falling-piece animation with staggered waves | CSS `@keyframes` with configurable timing and seed |
+| Accessible, safe, self-contained SVG | `role="img"`, `aria-label`, `<title>`, `<desc>`, `prefers-reduced-motion`, XML-escaped labels, no `<script>` or external resources |
+
+> **Animated preview vs. SVG output:** The GIF above is a pre-recorded animation preview. The CLI produces a standalone `.svg` whose CSS animation respects `prefers-reduced-motion` and renders at full vector resolution. See [`output/stack.svg`](output/stack.svg) for the generated default.
+
+---
+
+## ✨ Key Features
+
+- **Zero dependencies** — uses only the Python standard library (Python 3.10+)
+- **CLI and JSON config** — generate from the command line or a config file
+- **24 built-in skills** — brand colours and Simple Icons logos for common technologies
+- **Custom colours and timing** — override any colour, drop speed, stagger delay, or random seed
+- **Reproducible output** — same seed and skills always produce the same SVG
+- **Safe SVG** — no `<script>`, no `xlink:href`, no external URLs, proper XML escaping
+- **`prefers-reduced-motion`** — CSS animation disabled instantly for users who prefer it
+
+---
+
+## 🚀 Getting Started
 
 ```bash
-# Clone and generate the default demo
-git clone https://github.com/ZenzerJs/stacktris.git
-cd stacktris
+git clone https://github.com/ZenzerJs/Stacktris.git
+cd Stacktris
 python3 -m stacktris -o stack.svg
 ```
 
-That's it — no `pip install`, no virtual environment required.
-Stacktris uses **only the Python standard library** (Python 3.10+).
+No `pip install` or virtual environment required. Standard library only.
 
-## Usage
+---
+
+## 🔧 Usage
 
 ```bash
 # Default 24-skill demo board
@@ -55,11 +93,11 @@ python3 -m stacktris --step 0.05 --stagger 0.15 --seed 42 --title "MY STACK"
 ### CLI Options
 
 | Flag | Default | Description |
-|------|---------|-------------|
+|---|---|---|
 | `-o`, `--output` | `stack.svg` | Output file path |
 | `-c`, `--config` | — | JSON config file |
 | `--skills` | all 24 | Space-separated skill names |
-| `--seed` | `11` | Random seed for layout + wave order |
+| `--seed` | `11` | Random seed for layout and wave order |
 | `--columns` | `14` | Board width in columns |
 | `--cell-size` | `56` | Cell size in pixels |
 | `--step` | `0.07` | Seconds per row drop tick |
@@ -68,7 +106,9 @@ python3 -m stacktris --step 0.05 --stagger 0.15 --seed 42 --title "MY STACK"
 | `--list-skills` | — | Print built-in skill names and exit |
 | `--version` | — | Print version and exit |
 
-## Configuration
+---
+
+## ⚙️ Configuration
 
 For full control, use a JSON config file:
 
@@ -91,10 +131,11 @@ For full control, use a JSON config file:
 }
 ```
 
-### Config fields
+<details>
+<summary><strong>All config fields</strong></summary>
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+|---|---|---|---|
 | `skills` | array | *required* | List of skill objects |
 | `skills[].label` | string | *required* | Skill name (case-insensitive for built-ins) |
 | `skills[].color` | string | auto | Hex colour `#rrggbb` (auto-filled for built-ins) |
@@ -113,14 +154,21 @@ For full control, use a JSON config file:
 | `separator_color` | string | `#2a3558` | Title separator colour |
 | `border_color` | string | `#050814` | Piece outline colour |
 
+</details>
+
 See the [`examples/`](examples/) directory for ready-to-use configs.
 
-## Supported Skills
+---
 
-24 built-in skills with brand colours and logos:
+## 🗂️ Supported Skills
+
+24 built-in skills with brand colours and [Simple Icons](https://simpleicons.org) logos:
+
+<details>
+<summary><strong>View full list</strong></summary>
 
 | Skill | Colour | Icon |
-|-------|--------|------|
+|---|---|---|
 | Docker | `#2496ed` | docker |
 | FastAPI | `#009688` | fastapi |
 | GitHub Actions | `#2088ff` | githubactions |
@@ -146,104 +194,98 @@ See the [`examples/`](examples/) directory for ready-to-use configs.
 | Vercel | `#000000` | vercel |
 | Vitest | `#6e9f18` | vitest |
 
-## Embedding in Your README
+</details>
 
-Use the raw GitHub URL to embed the animated SVG:
+---
 
-```markdown
-![My Stack](https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/stack.svg)
-```
+## 🖼️ Embedding in Your README
 
-Or reference it relative to the repo root:
+Reference the SVG relative to the repo root or via raw GitHub URL:
 
 ```markdown
 ![My Stack](./stack.svg)
 ```
 
-### GitHub caching
+```markdown
+![My Stack](https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/stack.svg)
+```
 
-GitHub proxies images through `camo.githubusercontent.com` and caches them
-aggressively. After updating your SVG, the cached version may take minutes to
-hours to refresh. Append a cache-busting query string if needed:
+**GitHub caching:** GitHub proxies images through `camo.githubusercontent.com` and caches aggressively. After updating your SVG, the cached version may take minutes to hours to refresh. Append a cache-busting query string if needed:
 
 ```markdown
 ![My Stack](https://raw.githubusercontent.com/YOU/REPO/main/stack.svg?v=2)
 ```
 
-## Accessibility
+---
 
-- SVG includes `role="img"`, `aria-label`, `<title>`, and `<desc>` elements
-- `@media (prefers-reduced-motion: reduce)` disables all CSS animation in the
-  generated SVG instantly, showing the completed board as a static image
-- The GIF preview in this README is a raster animation and **does not** respond
-  to `prefers-reduced-motion` — users who prefer reduced motion should embed
-  the SVG output instead, which honours that media query natively
-- All text labels and icons are inline — no external fonts or images to load
+## 🏗️ Architecture
 
-## Limitations
-
-- **Layout packing:** The demo's 24-skill layout is hand-tuned for a perfectly
-  filled 14-column board. Custom skill sets use an automatic packer that finds
-  valid placements but may leave gaps in the grid. Very large skill counts
-  (30+) on narrow boards may fail to pack.
-- **Tetromino shapes only:** Every piece is exactly 4 cells in a standard
-  tetromino shape (I/O/T/S/Z/L/J). Custom shapes are not supported.
-- **Built-in icons only:** The 24 bundled Simple Icons logos are the supported
-  set. Adding new icons requires editing `stacktris/icons.py`.
-- **Static SVG:** The falling animation plays once; it does not loop. GitHub
-  profile READMEs re-trigger the animation each time the page loads.
-- **No GIF/video export:** Output is SVG only. Use external tools (e.g.
-  `cairosvg`, Inkscape, or a browser screenshot) to convert to PNG/GIF.
-
-## Development
-
-```bash
-# Run tests
-python3 -m pytest tests/ -v
-
-# Generate all example outputs
-python3 -m stacktris -o output/stack.svg
-python3 -m stacktris -c examples/minimal.json -o output/minimal.svg
-python3 -m stacktris -c examples/custom_colors.json -o output/custom.svg
+```mermaid
+flowchart LR
+    A["Config / CLI args"] --> B["Config loader<br/>+ validation"]
+    B --> C["Tetromino packer<br/>layout engine"]
+    C --> D["SVG generator<br/>cells, bevels, icons"]
+    D --> E["CSS keyframes<br/>wave planner"]
+    E --> F["Standalone .svg"]
 ```
 
-## Project Structure
+The generator is a single-pass pipeline: config is validated, skills are packed as tetrominoes onto the board with overlap/bounds checks, and the SVG is emitted with inline CSS animations. No intermediate files, no network calls.
 
-```
-stacktris/
-├── stacktris/          # Python package
-│   ├── __init__.py     # Version
-│   ├── __main__.py     # python -m stacktris entry
-│   ├── cli.py          # Argument parsing
-│   ├── config.py       # Config loading/validation
-│   ├── generator.py    # SVG generation engine
-│   ├── icons.py        # Simple Icons SVG paths
-│   └── layout.py       # Tetromino packing
-├── examples/           # JSON config examples
-├── output/             # Generated SVG files
-├── tests/              # Test suite
-├── .github/workflows/  # CI
-├── LICENSE             # MIT (original code)
-├── THIRD_PARTY_NOTICES.md
+---
+
+## 📁 Repository Layout
+
+```text
+Stacktris/
+├── stacktris/              # Python package
+│   ├── __init__.py          # Version
+│   ├── __main__.py          # python -m stacktris entry
+│   ├── cli.py               # Argument parsing
+│   ├── config.py            # Config loading and validation
+│   ├── generator.py         # SVG generation engine
+│   ├── icons.py             # Simple Icons SVG paths
+│   └── layout.py            # Tetromino packing
+├── examples/                # JSON config examples
+├── output/                  # Generated SVG files
+├── docs/                    # Demo assets
+├── tests/                   # 53 tests (CLI, config, layout, generator)
+├── .github/workflows/       # CI (Python 3.10–3.13)
+├── LICENSE                  # MIT (original code)
+├── THIRD_PARTY_NOTICES.md   # Simple Icons CC0, trademark caveats
 └── pyproject.toml
 ```
 
-## Contributing
+---
 
-Contributions welcome! Please open an issue or PR.
+## ♿ Accessibility
 
-Before submitting, ensure tests pass:
+- Generated SVG includes `role="img"`, `aria-label`, `<title>`, and `<desc>` elements
+- `@media (prefers-reduced-motion: reduce)` disables all CSS animation in the SVG, showing the completed board as a static image
+- The GIF preview in this README is a raster animation and **does not** respond to `prefers-reduced-motion` — users who prefer reduced motion should embed the generated SVG, which honours that media query natively
+- All text labels and icons are inline — no external fonts or images to load
 
-```bash
-python3 -m pytest tests/ -v
-```
+---
 
-## Licence
+## 🎓 Limitations
+
+- **Layout packing:** The demo's 24-skill layout is hand-tuned for a perfectly filled 14-column board. Custom skill sets use an automatic packer that finds valid placements but may leave gaps in the grid. Very large skill counts (30+) on narrow boards may fail to pack.
+- **Tetromino shapes only:** Every piece is exactly 4 cells in a standard tetromino shape (I/O/T/S/Z/L/J). Custom shapes are not supported.
+- **Built-in icons only:** The 24 bundled Simple Icons logos are the supported set. Adding new icons requires editing `stacktris/icons.py`.
+- **Static SVG:** The falling animation plays once; it does not loop. GitHub profile READMEs re-trigger the animation each time the page loads.
+- **No GIF/video export:** Output is SVG only. Use external tools (e.g. `cairosvg`, Inkscape, or a browser screenshot) to convert to PNG/GIF.
+
+---
+
+## 📜 Licence
 
 Original code is [MIT](LICENSE) licensed. Copyright (c) 2026 ZenzerJs.
 
-Brand logos are sourced from [Simple Icons](https://simpleicons.org) (CC0-1.0
-artwork licence). Individual brand marks remain trademarks of their respective
-owners. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.
+Brand logos sourced from [Simple Icons](https://simpleicons.org) (CC0-1.0 artwork licence). Individual brand marks remain trademarks of their respective owners. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 This project is not affiliated with The Tetris Company.
+
+<div align="center">
+
+*Built by [@ZenzerJs](https://github.com/ZenzerJs)*
+
+</div>
