@@ -149,7 +149,7 @@ For full control, use a JSON config file:
 | `start_delay` | float | `0.4` | Delay before first drop |
 | `hold` | float | `0.6` | Rest time after board is complete |
 | `title` | string | `STACK` | Header text |
-| `background` | string | `#0b1020` | Background colour |
+| `background` | string | `#0d1117` | Background colour |
 | `grid_color` | string | `#141b33` | Grid line colour |
 | `separator_color` | string | `#2a3558` | Title separator colour |
 | `border_color` | string | `#050814` | Piece outline colour |

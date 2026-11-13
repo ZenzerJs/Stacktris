@@ -42,7 +42,7 @@ class Config:
     hold: float = 0.6
     seed: int = 11
     title: str = "STACK"
-    background: str = "#0b1020"
+    background: str = "#0d1117"
     grid_color: str = "#141b33"
     separator_color: str = "#2a3558"
     border_color: str = "#050814"
