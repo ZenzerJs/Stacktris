@@ -277,7 +277,7 @@ Stacktris/
 ├── examples/                # JSON config examples
 ├── output/                  # Generated SVG files
 ├── docs/                    # Demo assets
-├── tests/                   # 80 tests (CLI, config, layout, generator, line-clear)
+├── tests/                   # 81 tests (CLI, config, layout, generator, line-clear)
 ├── .github/workflows/       # CI (Python 3.10–3.13)
 ├── LICENSE                  # MIT (original code)
 ├── THIRD_PARTY_NOTICES.md   # Simple Icons CC0, trademark caveats
