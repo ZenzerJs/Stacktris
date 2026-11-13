@@ -8,9 +8,9 @@
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-<img src="docs/demo.gif" alt="Stacktris demo — animated GIF showing tetromino-shaped tech-skill pieces falling into a bevelled tile board with brand logos" width="900" />
+<img src="output/stack.svg" alt="Stacktris demo — animated SVG showing 24 tech-skill tetrominoes stacking on #0d1117 followed by the two-stage AI line-clear finale (Cursor, Claude, Antigravity)" width="900" />
 
-<sub>Animated demo of the default 24-skill board. The generated SVG plays the same falling animation via CSS keyframes.</sub>
+<sub>Live animated SVG ([`output/stack.svg`](output/stack.svg)) on GitHub dark (`#0d1117`): 24 skills stack, then Cursor, Claude, and Antigravity overhaul the board.</sub>
 
 </div>
 
@@ -38,12 +38,10 @@ Pick your skills, colours, and drop timing — Stacktris packs them as tetromino
 
 | What it does | How |
 |---|---|
-| Tetris-style skill board with tile bevels and grid | Tetromino packing engine with validated no-overlap geometry |
-| Real brand logos from [Simple Icons](https://simpleicons.org) | 24 embedded SVG paths — no external fetches |
-| Falling-piece animation with staggered waves | CSS `@keyframes` with configurable timing and seed |
+| Tetris-style skill board on `#0d1117` | Tetromino packing engine with bevelled tiles and validated no-overlap geometry |
+| Brand logos (27 built-in) | 24 Simple Icons paths + 3 AI tool marks (Cursor, Claude, Antigravity) — no external fetches |
+| Two-stage AI line-clear finale | Extra gap column filled by AI tools that flash, clear complete rows, and drop surviving blocks |
 | Accessible, safe, self-contained SVG | `role="img"`, `aria-label`, `<title>`, `<desc>`, `prefers-reduced-motion`, XML-escaped labels, no `<script>` or external resources |
-
-> **Animated preview vs. SVG output:** The GIF above is a pre-recorded animation preview. The CLI produces a standalone `.svg` whose CSS animation respects `prefers-reduced-motion` and renders at full vector resolution. See [`output/stack.svg`](output/stack.svg) for the generated default.
 
 ---
 
@@ -51,12 +49,13 @@ Pick your skills, colours, and drop timing — Stacktris packs them as tetromino
 
 - **Zero dependencies** — uses only the Python standard library (Python 3.10+)
 - **CLI and JSON config** — generate from the command line or a config file
-- **27 built-in skills** — brand colours and logos for common technologies plus AI tools
-- **Custom colours and timing** — override any colour, drop speed, stagger delay, or random seed
+- **GitHub-native dark theme** — `#0d1117` default background blends seamlessly into GitHub READMEs
+- **27 built-in skills** — 24 tech logos plus Cursor (`#000000`), Claude (`#d97757`), and Antigravity (`#3186ff`)
+- **Custom colours and timing** — override any colour, drop speed, stagger (`0.36s`), wave pause (`0.34s`), or random seed
 - **Reproducible output** — same seed and skills always produce the same SVG
 - **Safe SVG** — no `<script>`, no `xlink:href`, no external URLs, proper XML escaping
 - **`prefers-reduced-motion`** — CSS animation disabled instantly for users who prefer it
-- **Line-clear finale** — AI tool pieces (Cursor, Claude, Antigravity) fill a gap column, completing rows that then flash and clear like real Tetris
+- **Two-stage line-clear finale** — Cursor and Claude clear 3 rows each in an extra gap column before an Antigravity L-block lands alongside surviving top skills
 
 ---
 
@@ -89,6 +88,9 @@ python3 -m stacktris --list-skills
 
 # Custom animation timing
 python3 -m stacktris --step 0.05 --stagger 0.15 --seed 42 --title "MY STACK"
+
+# Disable the AI line-clear finale
+python3 -m stacktris --no-line-clear -o plain_stack.svg
 ```
 
 ### CLI Options
@@ -207,12 +209,21 @@ See the [`examples/`](examples/) directory for ready-to-use configs.
 
 ## 🧹 Line-Clear Finale
 
-By default, the board is one column wider than `board_columns`. After the normal skill pieces finish stacking, AI tool pieces drop sequentially into the gap column in stages — Cursor completes and clears the bottom 3 rows, Claude drops to complete and clear the next 3 rows, and Antigravity lands as an L-tetromino alongside the surviving top skills. The joke: AI tools overhauling your stack.
+By default, the board is one column wider than `board_columns` (`14 + 1 = 15` columns). Normal skill blocks stack into the original columns while leaving the extra gap column empty, then AI tool pieces drop sequentially in stages:
 
+1. **Cursor** (`#000000`, 3D isometric cube) fills rows `0–2` of the gap column → the bottom 3 rows flash white and clear, and everything above drops 3 rows.
+2. **Claude** (`#d97757`, Claw'd pixel mascot) fills the next 3 rows (`3–5`, now at `0–2`) → those 3 rows flash white and clear; mixed pieces split cleanly so surviving upper cells keep closed borders and drop to rows `0–1`.
+3. **Antigravity** (`#3186ff`, A-arch) drops last as a 4-cell L-tetromino alongside the surviving top skills (`Swift`, `JavaScript`, `Python`, `TypeScript`, `Java`).
+
+**Label & logo placement rules:**
+- Multi-row pieces prefer their uppermost off-row cell for the logo so surviving top blocks keep their icons after lower rows clear.
+- Single-column vertical pieces of height ≥ 3 (`CURSOR`, `CLAUDE` 1×3 blocks) place their label in the middle cell and their icon in the top cell.
+
+**Configuration:**
 - **Enabled by default.** Pass `--no-line-clear` or set `"line_clear": false` in your JSON config to disable.
-- **Configurable AI tools.** Override the default trio via `line_clear_skills` in JSON config or the `line_clear_skills` field on `Config`.
-- **Graceful degradation.** If the layout has no complete rows after the gap column fills, the AI tools still appear but no rows clear.
-- **`prefers-reduced-motion`** is respected for all line-clear animations.
+- **Configurable AI tools.** Override the default trio via `line_clear_skills` in JSON config or `Config.line_clear_skills`.
+- **Graceful degradation.** If no rows become complete after the gap column fills, the AI tools still appear without clearing rows.
+- **`prefers-reduced-motion`** disables all `.p`, `.lc`, and `.fl` animations.
 
 ---
 
@@ -278,8 +289,7 @@ Stacktris/
 ## ♿ Accessibility
 
 - Generated SVG includes `role="img"`, `aria-label`, `<title>`, and `<desc>` elements
-- `@media (prefers-reduced-motion: reduce)` disables all CSS animation in the SVG, showing the completed board as a static image
-- The GIF preview in this README is a raster animation and **does not** respond to `prefers-reduced-motion` — users who prefer reduced motion should embed the generated SVG, which honours that media query natively
+- `@media (prefers-reduced-motion: reduce)` disables all CSS animation (`.p`, `.lc`, `.fl`) in the SVG, showing the board as a static image
 - All text labels and icons are inline — no external fonts or images to load
 
 ---
@@ -287,8 +297,8 @@ Stacktris/
 ## 🎓 Limitations
 
 - **Layout packing:** The demo's 24-skill layout is hand-tuned for a perfectly filled 14-column board. Custom skill sets use an automatic packer that finds valid placements but may leave gaps in the grid. Very large skill counts (30+) on narrow boards may fail to pack.
-- **Tetromino shapes only:** Every piece is exactly 4 cells in a standard tetromino shape (I/O/T/S/Z/L/J). Custom shapes are not supported.
-- **Built-in icons only:** The 24 bundled Simple Icons logos are the supported set. Adding new icons requires editing `stacktris/icons.py`.
+- **Piece shapes:** Normal skill pieces are 4-cell standard tetrominoes (I/O/T/S/Z/L/J). Gap-column AI pieces are 1×N vertical bars, with the top AI piece forming an L-tetromino when adjacent cells are free.
+- **Built-in icons only:** The 27 bundled icons (24 Simple Icons + 3 AI tool marks) are the supported set. Adding new icons requires editing `stacktris/icons.py`.
 - **Static SVG:** The falling animation plays once; it does not loop. GitHub profile READMEs re-trigger the animation each time the page loads.
 - **No GIF/video export:** Output is SVG only. Use external tools (e.g. `cairosvg`, Inkscape, or a browser screenshot) to convert to PNG/GIF.
 
