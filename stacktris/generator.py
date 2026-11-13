@@ -55,34 +55,39 @@ def _cell_svg(c: int, r: int, base: str, max_h: int, cell: int) -> str:
     )
 
 
+def _outline_svg_parts(
+    subset: list[tuple[int, int]],
+    full: set[tuple[int, int]],
+    max_h: int,
+    cell: int,
+    border_color: str,
+) -> tuple[str, str]:
+    """Return (outer_border_svg, cut_border_svg) for *subset* relative to *full*."""
+    sub = set(subset)
+    outer: list[str] = []
+    cut: list[str] = []
+    for c, r in subset:
+        x, y = _px(c, r, max_h, cell)
+        edges = [
+            ((c, r + 1), f'<line x1="{x}" y1="{y}" x2="{x + cell}" y2="{y}" stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'),
+            ((c, r - 1), f'<line x1="{x}" y1="{y + cell}" x2="{x + cell}" y2="{y + cell}" stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'),
+            ((c - 1, r), f'<line x1="{x}" y1="{y}" x2="{x}" y2="{y + cell}" stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'),
+            ((c + 1, r), f'<line x1="{x + cell}" y1="{y}" x2="{x + cell}" y2="{y + cell}" stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'),
+        ]
+        for nbr, line in edges:
+            if nbr not in sub:
+                if nbr in full:
+                    cut.append(line)
+                else:
+                    outer.append(line)
+    return "".join(outer), "".join(cut)
+
+
 def _outline_svg(
     cells: list[tuple[int, int]], max_h: int, cell: int, border_color: str
 ) -> str:
-    cs = set(cells)
-    out: list[str] = []
-    for c, r in cells:
-        x, y = _px(c, r, max_h, cell)
-        if (c, r + 1) not in cs:
-            out.append(
-                f'<line x1="{x}" y1="{y}" x2="{x + cell}" y2="{y}" '
-                f'stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'
-            )
-        if (c, r - 1) not in cs:
-            out.append(
-                f'<line x1="{x}" y1="{y + cell}" x2="{x + cell}" y2="{y + cell}" '
-                f'stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'
-            )
-        if (c - 1, r) not in cs:
-            out.append(
-                f'<line x1="{x}" y1="{y}" x2="{x}" y2="{y + cell}" '
-                f'stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'
-            )
-        if (c + 1, r) not in cs:
-            out.append(
-                f'<line x1="{x + cell}" y1="{y}" x2="{x + cell}" y2="{y + cell}" '
-                f'stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'
-            )
-    return "".join(out)
+    outer, _ = _outline_svg_parts(cells, set(cells), max_h, cell, border_color)
+    return outer
 
 
 def _glyph(slug: str, x: float, y: float, size: float, color: str, shadow: str) -> str:
@@ -114,7 +119,7 @@ def _label_and_icon(
     shadow: str,
     max_h: int,
     cell: int,
-) -> tuple[str, float, float]:
+) -> tuple[str, float, float, int, tuple[int, int]]:
     rows: dict[int, list[int]] = {}
     for c, r in cells:
         rows.setdefault(r, []).append(c)
@@ -134,7 +139,7 @@ def _label_and_icon(
     iy = PAD_TOP + (max_h - 1 - icon_cell[1]) * cell + cell / 2
 
     if not label_cells:
-        return "", ix, iy
+        return "", ix, iy, r_best, icon_cell
 
     cx = PAD_X + (label_cells[0] + label_cells[-1] + 1) / 2 * cell
     cy = PAD_TOP + (max_h - 1 - r_best) * cell + cell / 2
@@ -144,6 +149,9 @@ def _label_and_icon(
     lines = [escaped]
     if " " in label and len(label) * 0.62 * 14 > run_px:
         lines = [xml_escape(w) for w in label.split(" ")]
+    elif " " not in label and len(label) * 0.62 * 14 > run_px and len(label) >= 9 and run_px <= 50:
+        split_at = 4 if label.upper().startswith("ANTI") and len(label) > 6 else len(label) // 2
+        lines = [xml_escape(label[:split_at] + "-"), xml_escape(label[split_at:])]
     fs = min(14, run_px / (max(len(l) for l in lines) * 0.66))
     style = f"fill:{text_color};stroke:{shadow};stroke-opacity:.45"
 
@@ -155,7 +163,7 @@ def _label_and_icon(
             f'<text x="{cx:.1f}" y="{cy + fs * .6:.1f}" font-size="{fs:.1f}" style="{style}">{lines[1]}</text>'
         )
 
-    return text, ix, iy
+    return text, ix, iy, r_best, icon_cell
 
 
 def _plan_waves(
@@ -255,12 +263,14 @@ def _create_ai_pieces(
 
 def _lc_flash_css(total: float, flash_start: float, flash_end: float) -> str:
     pct = lambda t: f"{t / total * 100:.3f}%"
-    mid = (flash_start + flash_end) / 2
+    dur = flash_end - flash_start
     return (
         "@keyframes lc-flash{"
         f"0%{{opacity:0}}"
         f"{pct(flash_start)}{{opacity:0}}"
-        f"{pct(mid)}{{opacity:.7}}"
+        f"{pct(flash_start + 0.25 * dur)}{{opacity:.85}}"
+        f"{pct(flash_start + 0.50 * dur)}{{opacity:.15}}"
+        f"{pct(flash_start + 0.75 * dur)}{{opacity:.85}}"
         f"{pct(flash_end)}{{opacity:0}}"
         "100%{opacity:0}}"
     )
@@ -274,6 +284,17 @@ def _lc_fade_css(total: float, clear_start: float, clear_end: float) -> str:
         f"{pct(clear_start)}{{opacity:1}}"
         f"{pct(clear_end)}{{opacity:0}}"
         "100%{opacity:0}}"
+    )
+
+
+def _lc_appear_css(total: float, clear_start: float, clear_end: float) -> str:
+    pct = lambda t: f"{t / total * 100:.3f}%"
+    return (
+        "@keyframes lc-appear{"
+        f"0%{{opacity:0}}"
+        f"{pct(clear_start)}{{opacity:0}}"
+        f"{pct(clear_end)}{{opacity:1}}"
+        "100%{opacity:1}}"
     )
 
 
@@ -292,10 +313,11 @@ def _lc_drop_css(
 
 
 _LC_AI_PAUSE = 0.25
-_LC_AI_STAGGER = 0.15
-_LC_PAUSE = 0.2
-_LC_FLASH = 0.3
-_LC_SETTLE = 0.4
+_LC_AI_GAP = 0.08
+_LC_PAUSE = 0.20
+_LC_FLASH = 0.36
+_LC_CLEAR = 0.20
+_LC_DROP = 0.36
 
 
 def _piece_svg(
@@ -306,30 +328,91 @@ def _piece_svg(
     cell: int,
     border_color: str,
     bg: str,
-    inner_style: str | None = None,
+    complete_rows: set[int] | None = None,
 ) -> str:
-    """Render a single piece group (normal or AI-tool)."""
+    """Render a single piece group (normal or AI-tool), handling partial line clears."""
     base = piece.skill.color
     icon_name = piece.skill.icon
     dark_text = _luminance(base) > 165
     text_color = bg if dark_text else "#ffffff"
     shadow = "#ffffff" if dark_text else "#000000"
-    style = f"animation:{anim_name} {total:.2f}s linear 1 both"
+    anim_dur = f"{total:.2f}s"
+    style = f"animation:{anim_name} {anim_dur} linear 1 both"
 
-    parts: list[str] = []
-    for c, r in piece.cells:
-        parts.append(_cell_svg(c, r, base, max_h, cell))
-    parts.append(_outline_svg(piece.cells, max_h, cell, border_color))
-    text, ix, iy = _label_and_icon(
+    text, ix, iy, label_row, icon_cell = _label_and_icon(
         piece.skill.label, piece.cells, text_color, shadow, max_h, cell
     )
-    parts.append(_icon_svg(icon_name, ix, iy, text_color, shadow))
-    parts.append(text)
-    content = "".join(parts)
+    icon_svg = _icon_svg(icon_name, ix, iy, text_color, shadow)
 
-    if inner_style:
-        content = f'<g class="lc" style="{inner_style}">{content}</g>'
-    return f'<g class="p" style="{style}">{content}</g>'
+    if not complete_rows:
+        parts = [_cell_svg(c, r, base, max_h, cell) for c, r in piece.cells]
+        parts.append(_outline_svg(piece.cells, max_h, cell, border_color))
+        parts.append(icon_svg)
+        parts.append(text)
+        return f'<g class="p" style="{style}">{"".join(parts)}</g>'
+
+    cleared = [(c, r) for c, r in piece.cells if r in complete_rows]
+    surviving = [(c, r) for c, r in piece.cells if r not in complete_rows]
+    groups: dict[int, list[tuple[int, int]]] = {}
+    for c, r in surviving:
+        n_drop = sum(1 for cr in complete_rows if cr < r)
+        groups.setdefault(n_drop, []).append((c, r))
+
+    if not surviving:
+        parts = [_cell_svg(c, r, base, max_h, cell) for c, r in piece.cells]
+        parts.append(_outline_svg(piece.cells, max_h, cell, border_color))
+        parts.append(icon_svg)
+        parts.append(text)
+        inner = f"animation:lc-fade {anim_dur} linear 1 both"
+        return f'<g class="p" style="{style}"><g class="lc" style="{inner}">{"".join(parts)}</g></g>'
+
+    if not cleared and len(groups) == 1:
+        n_drop = next(iter(groups))
+        parts = [_cell_svg(c, r, base, max_h, cell) for c, r in piece.cells]
+        parts.append(_outline_svg(piece.cells, max_h, cell, border_color))
+        parts.append(icon_svg)
+        parts.append(text)
+        content = "".join(parts)
+        if n_drop > 0:
+            inner = f"animation:lc-drop-{n_drop} {anim_dur} linear 1 both"
+            content = f'<g class="lc" style="{inner}">{content}</g>'
+        return f'<g class="p" style="{style}">{content}</g>'
+
+    # Mixed piece: cells in cleared rows fade out; surviving cells keep borders and drop.
+    full_set = set(piece.cells)
+    layers: list[str] = []
+
+    if cleared:
+        c_parts = [_cell_svg(c, r, base, max_h, cell) for c, r in cleared]
+        c_outer, _ = _outline_svg_parts(cleared, full_set, max_h, cell, border_color)
+        c_parts.append(c_outer)
+        if icon_cell[1] in complete_rows:
+            c_parts.append(icon_svg)
+        if text and label_row in complete_rows:
+            c_parts.append(text)
+        c_style = f"animation:lc-fade {anim_dur} linear 1 both"
+        layers.append(f'<g class="lc" style="{c_style}">{"".join(c_parts)}</g>')
+
+    for n_drop, g_cells in sorted(groups.items()):
+        g_rows = {r for _, r in g_cells}
+        g_set = set(g_cells)
+        s_parts = [_cell_svg(c, r, base, max_h, cell) for c, r in g_cells]
+        s_outer, s_cut = _outline_svg_parts(g_cells, full_set, max_h, cell, border_color)
+        s_parts.append(s_outer)
+        if s_cut:
+            appear_style = f"animation:lc-appear {anim_dur} linear 1 both"
+            s_parts.append(f'<g class="lc" opacity="0" style="{appear_style}">{s_cut}</g>')
+        if icon_cell in g_set:
+            s_parts.append(icon_svg)
+        if text and label_row in g_rows:
+            s_parts.append(text)
+        s_content = "".join(s_parts)
+        if n_drop > 0:
+            s_style = f"animation:lc-drop-{n_drop} {anim_dur} linear 1 both"
+            s_content = f'<g class="lc" style="{s_style}">{s_content}</g>'
+        layers.append(s_content)
+
+    return f'<g class="p" style="{style}">{"".join(layers)}</g>'
 
 
 def generate(
@@ -349,9 +432,8 @@ def generate(
     complete_rows: set[int] = set()
     ai_pieces: list[PlacedPiece] = []
     ai_plan: dict[int, tuple[float, int]] = {}
-    piece_lc: dict[int, str | None] = {}
-    ai_lc: dict[int, str | None] = {}
     drop_keyframes: dict[int, str] = {}
+    has_cut_edges = False
 
     if lc_active:
         display_cols = cols + 1
@@ -360,48 +442,36 @@ def generate(
         ai_pieces = _create_ai_pieces(lc_skills, cols, max_h)
 
         ai_start = normal_end + _LC_AI_PAUSE
+        t = ai_start
         for i, ap in enumerate(ai_pieces):
-            start_t = ai_start + i * _LC_AI_STAGGER
             rows_fall = max_h + 1 - min(r for _, r in ap.cells)
-            ai_plan[i] = (start_t, rows_fall)
+            ai_plan[i] = (t, rows_fall)
+            t = t + rows_fall * cfg.step + _LC_AI_GAP
         ai_end = max(
-            ai_plan[i][0] + ai_plan[i][1] * cfg.step for i in ai_plan
-        ) if ai_plan else ai_start
+            (ai_plan[i][0] + ai_plan[i][1] * cfg.step for i in ai_plan),
+            default=ai_start,
+        )
 
         if complete_rows:
             flash_start = ai_end + _LC_PAUSE
             flash_end = flash_start + _LC_FLASH
             clear_start = flash_end
-            clear_end = clear_start + _LC_SETTLE * 0.5
-            drop_start = flash_end
-            drop_end = drop_start + _LC_SETTLE
+            clear_end = clear_start + _LC_CLEAR
+            drop_start = clear_end
+            drop_end = drop_start + _LC_DROP
             total = drop_end + cfg.hold
 
-            for i, p in enumerate(pieces):
-                cell_rows = {r for _, r in p.cells}
-                if cell_rows & complete_rows:
-                    piece_lc[i] = "fade"
-                else:
-                    min_r = min(r for _, r in p.cells)
-                    n_drop = sum(1 for r in complete_rows if r < min_r)
-                    if n_drop > 0:
-                        piece_lc[i] = f"drop-{n_drop}"
-                        drop_keyframes[n_drop] = _lc_drop_css(
-                            f"lc-drop-{n_drop}", total, drop_start, drop_end, n_drop * cell
-                        )
-
-            for i, ap in enumerate(ai_pieces):
-                cell_rows = {r for _, r in ap.cells}
-                if cell_rows & complete_rows:
-                    ai_lc[i] = "fade"
-                else:
-                    min_r = min(r for _, r in ap.cells)
-                    n_drop = sum(1 for r in complete_rows if r < min_r)
-                    if n_drop > 0:
-                        ai_lc[i] = f"drop-{n_drop}"
-                        drop_keyframes[n_drop] = _lc_drop_css(
-                            f"lc-drop-{n_drop}", total, drop_start, drop_end, n_drop * cell
-                        )
+            for p in [*pieces, *ai_pieces]:
+                p_rows = {r for _, r in p.cells}
+                if (p_rows & complete_rows) and (p_rows - complete_rows):
+                    has_cut_edges = True
+                for _, r in p.cells:
+                    if r not in complete_rows:
+                        n_drop = sum(1 for cr in complete_rows if cr < r)
+                        if n_drop > 0 and n_drop not in drop_keyframes:
+                            drop_keyframes[n_drop] = _lc_drop_css(
+                                f"lc-drop-{n_drop}", total, drop_start, drop_end, n_drop * cell
+                            )
         else:
             total = ai_end + cfg.hold
     else:
@@ -428,6 +498,8 @@ def generate(
     if lc_active and complete_rows:
         kf_css += _lc_flash_css(total, flash_start, flash_end)
         kf_css += _lc_fade_css(total, clear_start, clear_end)
+        if has_cut_edges:
+            kf_css += _lc_appear_css(total, clear_start, clear_end)
         kf_css += "".join(drop_keyframes.values())
 
     reduced_classes = ".p"
@@ -466,30 +538,19 @@ def generate(
 
     out.append('<g clip-path="url(#well)">')
 
-    anim_dur = f"{total:.2f}s"
+    row_filter = complete_rows if (lc_active and complete_rows) else None
     for i, piece in enumerate(pieces):
-        inner = None
-        lc_type = piece_lc.get(i)
-        if lc_type == "fade":
-            inner = f"animation:lc-fade {anim_dur} linear 1 both"
-        elif lc_type is not None:
-            inner = f"animation:lc-{lc_type} {anim_dur} linear 1 both"
         out.append(_piece_svg(
-            piece, f"f{i}", total, max_h, cell, cfg.border_color, cfg.background, inner
+            piece, f"f{i}", total, max_h, cell, cfg.border_color, cfg.background, row_filter
         ))
 
     for i, ap in enumerate(ai_pieces):
-        inner = None
-        lc_type = ai_lc.get(i)
-        if lc_type == "fade":
-            inner = f"animation:lc-fade {anim_dur} linear 1 both"
-        elif lc_type is not None:
-            inner = f"animation:lc-{lc_type} {anim_dur} linear 1 both"
         out.append(_piece_svg(
-            ap, f"a{i}", total, max_h, cell, cfg.border_color, cfg.background, inner
+            ap, f"a{i}", total, max_h, cell, cfg.border_color, cfg.background, row_filter
         ))
 
     if lc_active and complete_rows:
+        anim_dur = f"{total:.2f}s"
         flash_style = f"animation:lc-flash {anim_dur} linear 1 both"
         for r in sorted(complete_rows):
             x = PAD_X

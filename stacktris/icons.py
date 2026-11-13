@@ -480,6 +480,6 @@ SUPPORTED_TECHS: dict[str, tuple[str, str]] = {
     "TYPESCRIPT": ("#3178c6", "typescript"),
     "PYTHON": ("#3776ab", "python"),
     "CURSOR": ("#00a2ff", "cursor"),
-    "CLAUDE": ("#d4a574", "claude"),
+    "CLAUDE": ("#d97757", "claude"),
     "ANTIGRAVITY": ("#a855f7", "antigravity"),
 }

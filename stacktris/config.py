@@ -80,7 +80,7 @@ def default_line_clear_skills() -> list[SkillEntry]:
     """Default AI tool skills used for the line-clear finale."""
     return [
         SkillEntry(label="CURSOR", color="#00a2ff", icon="cursor"),
-        SkillEntry(label="CLAUDE", color="#d4a574", icon="claude"),
+        SkillEntry(label="CLAUDE", color="#d97757", icon="claude"),
         SkillEntry(label="ANTIGRAVITY", color="#a855f7", icon="antigravity"),
     ]
 

@@ -174,7 +174,7 @@ See the [`examples/`](examples/) directory for ready-to-use configs.
 | Skill | Colour | Icon |
 |---|---|---|
 | Antigravity | `#a855f7` | antigravity |
-| Claude | `#d4a574` | claude |
+| Claude | `#d97757` | claude |
 | Cursor | `#00a2ff` | cursor |
 | Docker | `#2496ed` | docker |
 | FastAPI | `#009688` | fastapi |
@@ -266,7 +266,7 @@ Stacktris/
 ├── examples/                # JSON config examples
 ├── output/                  # Generated SVG files
 ├── docs/                    # Demo assets
-├── tests/                   # 77 tests (CLI, config, layout, generator, line-clear)
+├── tests/                   # 80 tests (CLI, config, layout, generator, line-clear)
 ├── .github/workflows/       # CI (Python 3.10–3.13)
 ├── LICENSE                  # MIT (original code)
 ├── THIRD_PARTY_NOTICES.md   # Simple Icons CC0, trademark caveats

@@ -202,3 +202,45 @@ class TestLineClear:
         cfg = Config(skills=skills, board_columns=6, line_clear=True)
         svg, _ = _make_svg(cfg)
         ET.fromstring(svg)
+
+    def test_partial_piece_surviving_cells_preserved(self):
+        import re
+
+        svg, _ = _make_svg()
+        assert "@keyframes lc-appear" in svg
+        # Mixed pieces (e.g. JAVASCRIPT, TYPESCRIPT, SWIFT, JAVA) have both lc-fade and lc-drop-6
+        assert svg.count("animation:lc-drop-6") >= 6
+        assert svg.count("animation:lc-appear") >= 4
+
+    def test_ai_pieces_drop_without_overtaking(self):
+        import re
+
+        svg, _ = _make_svg()
+        # Each AI piece a{i} must start after a{i-1} finishes falling
+        end_times = []
+        start_times = []
+        for idx in range(3):
+            m = re.search(rf"@keyframes a{idx}\{{([^}}]*(?:\}}[^}}]*)*)\}}\}}", svg)
+            # Extract all percentage timestamps in the keyframe block
+            block_start = svg.index(f"@keyframes a{idx}{{")
+            depth = 0
+            block_end = block_start
+            for pos in range(block_start, len(svg)):
+                if svg[pos] == "{":
+                    depth += 1
+                elif svg[pos] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        block_end = pos + 1
+                        break
+            block = svg[block_start:block_end]
+            pcts = [float(x) for x in re.findall(r"(\d+\.\d+)%", block)]
+            start_times.append(pcts[0])
+            end_times.append(pcts[-1])
+        assert start_times[1] > end_times[0]
+        assert start_times[2] > end_times[1]
+
+    def test_antigravity_label_wrapped(self):
+        svg, _ = _make_svg()
+        assert ">ANTI-</text>" in svg
+        assert ">GRAVITY</text>" in svg
