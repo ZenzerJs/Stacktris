@@ -107,6 +107,7 @@ python3 -m stacktris --no-line-clear -o plain_stack.svg
 | `--stagger` | `0.36` | Delay between pieces in a wave |
 | `--title` | `STACK` | Title text at top of graphic |
 | `--no-line-clear` | — | Disable the line-clear finale |
+| `--no-loop` | — | Play the animation once instead of looping |
 | `--list-skills` | — | Print built-in skill names and exit |
 | `--version` | — | Print version and exit |
 
@@ -151,7 +152,7 @@ For full control, use a JSON config file:
 | `stagger` | float | `0.36` | Intra-wave delay |
 | `wave_pause` | float | `0.34` | Pause between waves |
 | `start_delay` | float | `0.4` | Delay before first drop |
-| `hold` | float | `0.6` | Rest time after board is complete |
+| `hold` | float | `1.5` | Pause at end before looping |
 | `title` | string | `STACK` | Header text |
 | `background` | string | `#0d1117` | Background colour |
 | `grid_color` | string | `#141b33` | Grid line colour |
@@ -159,6 +160,7 @@ For full control, use a JSON config file:
 | `border_color` | string | `#050814` | Piece outline colour |
 | `line_clear` | bool | `true` | Enable Tetris line-clear finale |
 | `line_clear_skills` | array | auto | AI tool skills for the gap column (defaults to Cursor, Claude, Antigravity) |
+| `loop` | bool | `true` | Loop the animation automatically |
 
 </details>
 
@@ -277,7 +279,7 @@ Stacktris/
 ├── examples/                # JSON config examples
 ├── output/                  # Generated SVG files
 ├── docs/                    # Demo assets
-├── tests/                   # 81 tests (CLI, config, layout, generator, line-clear)
+├── tests/                   # 84 tests (CLI, config, layout, generator, line-clear)
 ├── .github/workflows/       # CI (Python 3.10–3.13)
 ├── LICENSE                  # MIT (original code)
 ├── THIRD_PARTY_NOTICES.md   # Simple Icons CC0, trademark caveats
@@ -299,7 +301,7 @@ Stacktris/
 - **Layout packing:** The demo's 24-skill layout is hand-tuned for a perfectly filled 14-column board. Custom skill sets use an automatic packer that finds valid placements but may leave gaps in the grid. Very large skill counts (30+) on narrow boards may fail to pack.
 - **Piece shapes:** Normal skill pieces are 4-cell standard tetrominoes (I/O/T/S/Z/L/J). Gap-column AI pieces are 1×N vertical bars, with the top AI piece forming an L-tetromino when adjacent cells are free.
 - **Built-in icons only:** The 27 bundled icons (24 Simple Icons + 3 AI tool marks) are the supported set. Adding new icons requires editing `stacktris/icons.py`.
-- **Static SVG:** The falling animation plays once; it does not loop. GitHub profile READMEs re-trigger the animation each time the page loads.
+- **Looping SVG:** The animation loops automatically after a `1.5s` end pause (`--no-loop` or `"loop": false` plays once).
 - **No GIF/video export:** Output is SVG only. Use external tools (e.g. `cairosvg`, Inkscape, or a browser screenshot) to convert to PNG/GIF.
 
 ---
