@@ -264,3 +264,28 @@ class TestLineClear:
 
         svg, _ = _make_svg(cfg)
         assert ">ANTIGRAVITY</text>" in svg
+
+    def test_cursor_and_claude_labels_centered_in_1x3(self):
+        from stacktris.config import default_config
+        from stacktris.generator import _create_ai_pieces, _find_complete_rows, _label_and_icon
+        from stacktris.layout import pack_skills
+
+        cfg = default_config()
+        pieces, heights = pack_skills(cfg.skills, cfg.board_columns, cfg.seed)
+        max_h = max(heights)
+        cr = _find_complete_rows(pieces, cfg.board_columns, max_h)
+        ai = _create_ai_pieces(cfg.get_line_clear_skills(), cfg.board_columns, max_h, pieces, cr)
+
+        # CURSOR is rows 0..2 -> label in middle row 1, icon in top row 2
+        _, _, _, label_row, icon_cell = _label_and_icon(
+            ai[0].skill.label, ai[0].cells, "#fff", "#000", max_h, cfg.cell_size
+        )
+        assert label_row == 1
+        assert icon_cell == (14, 2)
+
+        # CLAUDE is rows 3..5 -> label in middle row 4, icon in top row 5
+        _, _, _, label_row, icon_cell = _label_and_icon(
+            ai[1].skill.label, ai[1].cells, "#fff", "#000", max_h, cfg.cell_size
+        )
+        assert label_row == 4
+        assert icon_cell == (14, 5)

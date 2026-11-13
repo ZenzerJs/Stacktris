@@ -124,7 +124,12 @@ def _label_and_icon(
     rows: dict[int, list[int]] = {}
     for c, r in cells:
         rows.setdefault(r, []).append(c)
-    r_best = max(rows, key=lambda r: (len(rows[r]), -r))
+    cols_used = {c for c, _ in cells}
+    if len(cols_used) == 1 and len(rows) >= 3:
+        sorted_rs = sorted(rows)
+        r_best = sorted_rs[len(sorted_rs) // 2]
+    else:
+        r_best = max(rows, key=lambda r: (len(rows[r]), -r))
     cs = sorted(rows[r_best])
     others = [(c, r) for c, r in cells if r != r_best]
     row_cx = PAD_X + (cs[0] + cs[-1] + 1) / 2 * cell
