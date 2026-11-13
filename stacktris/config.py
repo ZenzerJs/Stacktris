@@ -36,8 +36,8 @@ class Config:
     cell_size: int = 56
     board_columns: int = 14
     step: float = 0.07
-    stagger: float = 0.22
-    wave_pause: float = 0.22
+    stagger: float = 0.36
+    wave_pause: float = 0.34
     start_delay: float = 0.4
     hold: float = 0.6
     seed: int = 11

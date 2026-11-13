@@ -11,6 +11,7 @@ Produces a self-contained animated SVG with:
 from __future__ import annotations
 
 import random
+from dataclasses import dataclass
 from xml.sax.saxutils import escape as xml_escape
 
 from .config import Config, SkillEntry
@@ -129,7 +130,10 @@ def _label_and_icon(
     row_cx = PAD_X + (cs[0] + cs[-1] + 1) / 2 * cell
 
     if others:
-        icon_cell = max(others, key=lambda cr: abs(PAD_X + (cr[0] + 0.5) * cell - row_cx))
+        icon_cell = max(
+            others,
+            key=lambda cr: (round(abs(PAD_X + (cr[0] + 0.5) * cell - row_cx), 6), cr[1]),
+        )
         label_cells = cs
     else:
         icon_cell = (cs[0], r_best)
@@ -216,17 +220,26 @@ def _plan_waves(
     return plan, t
 
 
-def _keyframes(name: str, start: float, rows: int, total: float, cell: int, step: float) -> str:
+def _keyframes(
+    name: str,
+    start: float,
+    start_offset_rows: int,
+    total: float,
+    cell: int,
+    step: float,
+    end_offset_rows: int = 0,
+) -> str:
     def pct(s: float) -> str:
         return f"{s / total * 100:.3f}%"
 
+    steps = end_offset_rows - start_offset_rows
     hold = "animation-timing-function:step-end"
-    stops = [f"0%{{transform:translateY({-rows * cell}px);{hold}}}"]
-    for k in range(rows + 1):
+    stops = [f"0%{{transform:translateY({start_offset_rows * cell}px);{hold}}}"]
+    for k in range(steps + 1):
         stops.append(
-            f"{pct(start + k * step)}{{transform:translateY({-(rows - k) * cell}px);{hold}}}"
+            f"{pct(start + k * step)}{{transform:translateY({(start_offset_rows + k) * cell}px);{hold}}}"
         )
-    stops.append("100%{transform:translateY(0)}")
+    stops.append(f"100%{{transform:translateY({end_offset_rows * cell}px)}}")
     return f"@keyframes {name}{{{''.join(stops)}}}"
 
 
@@ -242,30 +255,65 @@ def _find_complete_rows(
 
 
 def _create_ai_pieces(
-    skills: list[SkillEntry], extra_col: int, max_h: int
+    skills: list[SkillEntry],
+    extra_col: int,
+    max_h: int,
+    pieces: list[PlacedPiece] | None = None,
+    complete_rows: set[int] | None = None,
 ) -> list[PlacedPiece]:
-    """Create vertical AI-tool pieces that fill the extra column from row 0 to max_h-1."""
+    """Create AI-tool pieces for the extra column, using an L-tetromino for the top piece when free."""
     used = skills[:max_h]
     n = len(used)
     if n == 0:
         return []
+    occupied = {cell for p in (pieces or []) for cell in p.cells}
+    cr = complete_rows or set()
     rows_per = max_h // n
     remainder = max_h % n
     result: list[PlacedPiece] = []
     row = 0
     for i, skill in enumerate(used):
         n_rows = rows_per + (1 if i < remainder else 0)
-        cells = [(extra_col, row + j) for j in range(n_rows)]
+        if (
+            i == n - 1
+            and n_rows == 2
+            and extra_col >= 2
+            and row not in cr
+            and (row + 1) not in cr
+            and (extra_col - 2, row) not in occupied
+            and (extra_col - 1, row) not in occupied
+        ):
+            cells = [
+                (extra_col - 2, row),
+                (extra_col - 1, row),
+                (extra_col, row),
+                (extra_col, row + 1),
+            ]
+        else:
+            cells = [(extra_col, row + j) for j in range(n_rows)]
         result.append(PlacedPiece(skill=skill, cells=cells))
         row += n_rows
     return result
 
 
-def _lc_flash_css(total: float, flash_start: float, flash_end: float) -> str:
+@dataclass(frozen=True)
+class _ClearStage:
+    index: int
+    clear_rows: frozenset[int]
+    visual_rows: tuple[int, ...]
+    flash_start: float
+    flash_end: float
+    clear_start: float
+    clear_end: float
+    drop_start: float
+    drop_end: float
+
+
+def _lc_flash_css(name: str, total: float, flash_start: float, flash_end: float) -> str:
     pct = lambda t: f"{t / total * 100:.3f}%"
     dur = flash_end - flash_start
     return (
-        "@keyframes lc-flash{"
+        f"@keyframes {name}{{"
         f"0%{{opacity:0}}"
         f"{pct(flash_start)}{{opacity:0}}"
         f"{pct(flash_start + 0.25 * dur)}{{opacity:.85}}"
@@ -276,10 +324,10 @@ def _lc_flash_css(total: float, flash_start: float, flash_end: float) -> str:
     )
 
 
-def _lc_fade_css(total: float, clear_start: float, clear_end: float) -> str:
+def _lc_fade_css(name: str, total: float, clear_start: float, clear_end: float) -> str:
     pct = lambda t: f"{t / total * 100:.3f}%"
     return (
-        "@keyframes lc-fade{"
+        f"@keyframes {name}{{"
         f"0%{{opacity:1}}"
         f"{pct(clear_start)}{{opacity:1}}"
         f"{pct(clear_end)}{{opacity:0}}"
@@ -287,10 +335,10 @@ def _lc_fade_css(total: float, clear_start: float, clear_end: float) -> str:
     )
 
 
-def _lc_appear_css(total: float, clear_start: float, clear_end: float) -> str:
+def _lc_appear_css(name: str, total: float, clear_start: float, clear_end: float) -> str:
     pct = lambda t: f"{t / total * 100:.3f}%"
     return (
-        "@keyframes lc-appear{"
+        f"@keyframes {name}{{"
         f"0%{{opacity:0}}"
         f"{pct(clear_start)}{{opacity:0}}"
         f"{pct(clear_end)}{{opacity:1}}"
@@ -298,26 +346,80 @@ def _lc_appear_css(total: float, clear_start: float, clear_end: float) -> str:
     )
 
 
-def _lc_drop_css(
-    name: str, total: float, drop_start: float, drop_end: float, drop_px: int
+def _lc_drop_segments_css(
+    name: str,
+    total: float,
+    segments: tuple[tuple[float, float, int, int], ...],
 ) -> str:
     pct = lambda t: f"{t / total * 100:.3f}%"
-    return (
-        f"@keyframes {name}{{"
-        f"0%{{transform:translateY(0)}}"
-        f"{pct(drop_start)}{{transform:translateY(0);animation-timing-function:ease-in}}"
-        f"{pct(drop_end)}{{transform:translateY({drop_px}px)}}"
-        f"100%{{transform:translateY({drop_px}px)}}"
-        "}}"
-    )
+    stops = ["0%{transform:translateY(0)}"]
+    for drop_start, drop_end, from_px, to_px in segments:
+        stops.append(
+            f"{pct(drop_start)}{{transform:translateY({from_px}px);animation-timing-function:ease-in}}"
+        )
+        stops.append(f"{pct(drop_end)}{{transform:translateY({to_px}px)}}")
+    final_px = segments[-1][3]
+    stops.append(f"100%{{transform:translateY({final_px}px)}}")
+    return f"@keyframes {name}{{{''.join(stops)}}}"
 
 
-_LC_AI_PAUSE = 0.25
-_LC_AI_GAP = 0.08
+_LC_AI_PAUSE = 0.45
+_LC_STAGE_PAUSE = 0.40
+_LC_AI_GAP = 0.15
 _LC_PAUSE = 0.20
 _LC_FLASH = 0.36
-_LC_CLEAR = 0.20
+_LC_CLEAR = 0.22
 _LC_DROP = 0.36
+
+
+def _cell_trajectory(
+    r: int,
+    stages: list[_ClearStage],
+    stage_start: int,
+    cell: int,
+) -> tuple[tuple[tuple[float, float, int, int], ...], int | None]:
+    """Return (drop_segments, clear_stage_index) for a cell at row *r*."""
+    segments: list[tuple[float, float, int, int]] = []
+    cum_drop = 0
+    for s in stages:
+        if s.index < stage_start:
+            continue
+        if r in s.clear_rows:
+            return tuple(segments), s.index
+        n_drop = sum(1 for cr in s.clear_rows if cr < r)
+        if n_drop > 0:
+            segments.append(
+                (s.drop_start, s.drop_end, cum_drop * cell, (cum_drop + n_drop) * cell)
+            )
+            cum_drop += n_drop
+    return tuple(segments), None
+
+
+def _cut_edges_by_stage(
+    g_cells: list[tuple[int, int]],
+    full_set: set[tuple[int, int]],
+    cell_clear_stage: dict[tuple[int, int], int | None],
+    max_h: int,
+    cell: int,
+    border_color: str,
+) -> dict[int, str]:
+    """Return {stage_idx: svg_lines} for borders exposed when adjacent cells clear."""
+    g_set = set(g_cells)
+    by_stage: dict[int, list[str]] = {}
+    for c, r in g_cells:
+        x, y = _px(c, r, max_h, cell)
+        edges = [
+            ((c, r + 1), f'<line x1="{x}" y1="{y}" x2="{x + cell}" y2="{y}" stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'),
+            ((c, r - 1), f'<line x1="{x}" y1="{y + cell}" x2="{x + cell}" y2="{y + cell}" stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'),
+            ((c - 1, r), f'<line x1="{x}" y1="{y}" x2="{x}" y2="{y + cell}" stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'),
+            ((c + 1, r), f'<line x1="{x + cell}" y1="{y}" x2="{x + cell}" y2="{y + cell}" stroke="{border_color}" stroke-width="5" stroke-linecap="square"/>'),
+        ]
+        for nbr, line in edges:
+            if nbr not in g_set and nbr in full_set:
+                cs = cell_clear_stage.get(nbr)
+                if cs is not None:
+                    by_stage.setdefault(cs, []).append(line)
+    return {k: "".join(v) for k, v in by_stage.items()}
 
 
 def _piece_svg(
@@ -328,9 +430,12 @@ def _piece_svg(
     cell: int,
     border_color: str,
     bg: str,
-    complete_rows: set[int] | None = None,
+    stages: list[_ClearStage] | None = None,
+    stage_start: int = 0,
+    drop_reg: dict[tuple[tuple[float, float, int, int], ...], str] | None = None,
+    appear_stages: set[int] | None = None,
 ) -> str:
-    """Render a single piece group (normal or AI-tool), handling partial line clears."""
+    """Render a single piece group (normal or AI-tool), handling multi-stage line clears."""
     base = piece.skill.color
     icon_name = piece.skill.icon
     dark_text = _luminance(base) > 165
@@ -344,73 +449,77 @@ def _piece_svg(
     )
     icon_svg = _icon_svg(icon_name, ix, iy, text_color, shadow)
 
-    if not complete_rows:
+    if not stages:
         parts = [_cell_svg(c, r, base, max_h, cell) for c, r in piece.cells]
         parts.append(_outline_svg(piece.cells, max_h, cell, border_color))
         parts.append(icon_svg)
         parts.append(text)
         return f'<g class="p" style="{style}">{"".join(parts)}</g>'
 
-    cleared = [(c, r) for c, r in piece.cells if r in complete_rows]
-    surviving = [(c, r) for c, r in piece.cells if r not in complete_rows]
-    groups: dict[int, list[tuple[int, int]]] = {}
-    for c, r in surviving:
-        n_drop = sum(1 for cr in complete_rows if cr < r)
-        groups.setdefault(n_drop, []).append((c, r))
+    cell_traj: dict[tuple[int, int], tuple[tuple[tuple[float, float, int, int], ...], int | None]] = {}
+    cell_clear_stage: dict[tuple[int, int], int | None] = {}
+    groups: dict[tuple[tuple[tuple[float, float, int, int], ...], int | None], list[tuple[int, int]]] = {}
+    for c, r in piece.cells:
+        traj = _cell_trajectory(r, stages, stage_start, cell)
+        cell_traj[(c, r)] = traj
+        cell_clear_stage[(c, r)] = traj[1]
+        groups.setdefault(traj, []).append((c, r))
 
-    if not surviving:
-        parts = [_cell_svg(c, r, base, max_h, cell) for c, r in piece.cells]
-        parts.append(_outline_svg(piece.cells, max_h, cell, border_color))
-        parts.append(icon_svg)
-        parts.append(text)
-        inner = f"animation:lc-fade {anim_dur} linear 1 both"
-        return f'<g class="p" style="{style}"><g class="lc" style="{inner}">{"".join(parts)}</g></g>'
+    def _register_drop(segs: tuple[tuple[float, float, int, int], ...]) -> str | None:
+        if not segs or drop_reg is None:
+            return None
+        if segs not in drop_reg:
+            drop_reg[segs] = f"lc-drop-{len(drop_reg)}"
+        return drop_reg[segs]
 
-    if not cleared and len(groups) == 1:
-        n_drop = next(iter(groups))
+    if len(groups) == 1:
+        segs, clear_idx = next(iter(groups))
         parts = [_cell_svg(c, r, base, max_h, cell) for c, r in piece.cells]
         parts.append(_outline_svg(piece.cells, max_h, cell, border_color))
         parts.append(icon_svg)
         parts.append(text)
         content = "".join(parts)
-        if n_drop > 0:
-            inner = f"animation:lc-drop-{n_drop} {anim_dur} linear 1 both"
-            content = f'<g class="lc" style="{inner}">{content}</g>'
+        if clear_idx is not None:
+            content = f'<g class="lc" style="animation:lc-fade-s{clear_idx} {anim_dur} linear 1 both">{content}</g>'
+        drop_name = _register_drop(segs)
+        if drop_name is not None:
+            content = f'<g class="lc" style="animation:{drop_name} {anim_dur} linear 1 both">{content}</g>'
         return f'<g class="p" style="{style}">{content}</g>'
 
-    # Mixed piece: cells in cleared rows fade out; surviving cells keep borders and drop.
     full_set = set(piece.cells)
     layers: list[str] = []
-
-    if cleared:
-        c_parts = [_cell_svg(c, r, base, max_h, cell) for c, r in cleared]
-        c_outer, _ = _outline_svg_parts(cleared, full_set, max_h, cell, border_color)
-        c_parts.append(c_outer)
-        if icon_cell[1] in complete_rows:
-            c_parts.append(icon_svg)
-        if text and label_row in complete_rows:
-            c_parts.append(text)
-        c_style = f"animation:lc-fade {anim_dur} linear 1 both"
-        layers.append(f'<g class="lc" style="{c_style}">{"".join(c_parts)}</g>')
-
-    for n_drop, g_cells in sorted(groups.items()):
+    # Keep track of whether the label on label_row has already been placed in a group
+    label_placed = False
+    for (segs, clear_idx), g_cells in sorted(groups.items(), key=lambda kv: (kv[0][1] is None, kv[0][1] or 0, kv[1])):
         g_rows = {r for _, r in g_cells}
         g_set = set(g_cells)
-        s_parts = [_cell_svg(c, r, base, max_h, cell) for c, r in g_cells]
-        s_outer, s_cut = _outline_svg_parts(g_cells, full_set, max_h, cell, border_color)
-        s_parts.append(s_outer)
-        if s_cut:
-            appear_style = f"animation:lc-appear {anim_dur} linear 1 both"
-            s_parts.append(f'<g class="lc" opacity="0" style="{appear_style}">{s_cut}</g>')
+        g_parts = [_cell_svg(c, r, base, max_h, cell) for c, r in g_cells]
+        g_outer, _ = _outline_svg_parts(g_cells, full_set, max_h, cell, border_color)
+        g_parts.append(g_outer)
+
+        cut_by_stage = _cut_edges_by_stage(
+            g_cells, full_set, cell_clear_stage, max_h, cell, border_color
+        )
+        for cs, cut_svg in sorted(cut_by_stage.items()):
+            if appear_stages is not None:
+                appear_stages.add(cs)
+            g_parts.append(
+                f'<g class="lc" opacity="0" style="animation:lc-appear-s{cs} {anim_dur} linear 1 both">{cut_svg}</g>'
+            )
+
         if icon_cell in g_set:
-            s_parts.append(icon_svg)
-        if text and label_row in g_rows:
-            s_parts.append(text)
-        s_content = "".join(s_parts)
-        if n_drop > 0:
-            s_style = f"animation:lc-drop-{n_drop} {anim_dur} linear 1 both"
-            s_content = f'<g class="lc" style="{s_style}">{s_content}</g>'
-        layers.append(s_content)
+            g_parts.append(icon_svg)
+        if text and not label_placed and label_row in g_rows:
+            g_parts.append(text)
+            label_placed = True
+
+        g_content = "".join(g_parts)
+        if clear_idx is not None:
+            g_content = f'<g class="lc" style="animation:lc-fade-s{clear_idx} {anim_dur} linear 1 both">{g_content}</g>'
+        drop_name = _register_drop(segs)
+        if drop_name is not None:
+            g_content = f'<g class="lc" style="animation:{drop_name} {anim_dur} linear 1 both">{g_content}</g>'
+        layers.append(g_content)
 
     return f'<g class="p" style="{style}">{"".join(layers)}</g>'
 
@@ -431,49 +540,65 @@ def generate(
     lc_active = cfg.line_clear and max_h > 0
     complete_rows: set[int] = set()
     ai_pieces: list[PlacedPiece] = []
-    ai_plan: dict[int, tuple[float, int]] = {}
-    drop_keyframes: dict[int, str] = {}
-    has_cut_edges = False
+    # ai_plan[i] = (start_t, start_offset_rows, end_offset_rows)
+    ai_plan: dict[int, tuple[float, int, int]] = {}
+    stages: list[_ClearStage] = []
+    drop_reg: dict[tuple[tuple[float, float, int, int], ...], str] = {}
+    appear_stages: set[int] = set()
 
     if lc_active:
         display_cols = cols + 1
         lc_skills = cfg.get_line_clear_skills()
         complete_rows = _find_complete_rows(pieces, cols, max_h)
-        ai_pieces = _create_ai_pieces(lc_skills, cols, max_h)
+        ai_pieces = _create_ai_pieces(lc_skills, cols, max_h, pieces, complete_rows)
 
-        ai_start = normal_end + _LC_AI_PAUSE
-        t = ai_start
+        cleared_so_far: set[int] = set()
+        t = normal_end + _LC_AI_PAUSE
+        last_action_end = t
+
         for i, ap in enumerate(ai_pieces):
-            rows_fall = max_h + 1 - min(r for _, r in ap.cells)
-            ai_plan[i] = (t, rows_fall)
-            t = t + rows_fall * cfg.step + _LC_AI_GAP
-        ai_end = max(
-            (ai_plan[i][0] + ai_plan[i][1] * cfg.step for i in ai_plan),
-            default=ai_start,
-        )
+            ap_rows = {r for _, r in ap.cells}
+            min_r = min(ap_rows)
+            prior_drop = sum(1 for cr in cleared_so_far if cr < min_r)
+            start_offset = -(max_h + 1 - min_r)
+            end_offset = prior_drop
+            steps = end_offset - start_offset
+            ai_plan[i] = (t, start_offset, end_offset)
+            land_t = t + steps * cfg.step
+            last_action_end = land_t
 
-        if complete_rows:
-            flash_start = ai_end + _LC_PAUSE
-            flash_end = flash_start + _LC_FLASH
-            clear_start = flash_end
-            clear_end = clear_start + _LC_CLEAR
-            drop_start = clear_end
-            drop_end = drop_start + _LC_DROP
-            total = drop_end + cfg.hold
+            stage_clear = ap_rows & complete_rows
+            if stage_clear:
+                flash_start = land_t + _LC_PAUSE
+                flash_end = flash_start + _LC_FLASH
+                clear_start = flash_end
+                clear_end = clear_start + _LC_CLEAR
+                drop_start = clear_end
+                drop_end = drop_start + _LC_DROP
+                visual_rows = tuple(
+                    r - sum(1 for cr in cleared_so_far if cr < r)
+                    for r in sorted(stage_clear)
+                )
+                stages.append(
+                    _ClearStage(
+                        index=len(stages),
+                        clear_rows=frozenset(stage_clear),
+                        visual_rows=visual_rows,
+                        flash_start=flash_start,
+                        flash_end=flash_end,
+                        clear_start=clear_start,
+                        clear_end=clear_end,
+                        drop_start=drop_start,
+                        drop_end=drop_end,
+                    )
+                )
+                cleared_so_far |= stage_clear
+                last_action_end = drop_end
+                t = drop_end + _LC_STAGE_PAUSE
+            else:
+                t = land_t + _LC_AI_GAP
 
-            for p in [*pieces, *ai_pieces]:
-                p_rows = {r for _, r in p.cells}
-                if (p_rows & complete_rows) and (p_rows - complete_rows):
-                    has_cut_edges = True
-                for _, r in p.cells:
-                    if r not in complete_rows:
-                        n_drop = sum(1 for cr in complete_rows if cr < r)
-                        if n_drop > 0 and n_drop not in drop_keyframes:
-                            drop_keyframes[n_drop] = _lc_drop_css(
-                                f"lc-drop-{n_drop}", total, drop_start, drop_end, n_drop * cell
-                            )
-        else:
-            total = ai_end + cfg.hold
+        total = last_action_end + cfg.hold
     else:
         display_cols = cols
         total = normal_end + cfg.hold
@@ -488,22 +613,68 @@ def generate(
     desc = f"Falling-block graphic showing tech skills: {', '.join(all_labels)}"
     desc_escaped = xml_escape(desc)
 
+    out_pieces: list[str] = []
+    # Map each AI piece index to the stage index at which it lands
+    ai_stage_start: list[int] = []
+    stage_cursor = 0
+    for i, ap in enumerate(ai_pieces):
+        ai_stage_start.append(stage_cursor)
+        ap_rows = {r for _, r in ap.cells}
+        if ap_rows & complete_rows:
+            stage_cursor += 1
+
+    for i, piece in enumerate(pieces):
+        out_pieces.append(
+            _piece_svg(
+                piece,
+                f"f{i}",
+                total,
+                max_h,
+                cell,
+                cfg.border_color,
+                cfg.background,
+                stages or None,
+                0,
+                drop_reg,
+                appear_stages,
+            )
+        )
+
+    for i, ap in enumerate(ai_pieces):
+        out_pieces.append(
+            _piece_svg(
+                ap,
+                f"a{i}",
+                total,
+                max_h,
+                cell,
+                cfg.border_color,
+                cfg.background,
+                stages or None,
+                ai_stage_start[i],
+                drop_reg,
+                appear_stages,
+            )
+        )
+
     kf_css = "".join(
-        _keyframes(f"f{i}", plan[i][0], plan[i][1], total, cell, cfg.step)
+        _keyframes(f"f{i}", plan[i][0], -plan[i][1], total, cell, cfg.step)
         for i in range(len(pieces))
     )
-    for i in ai_plan:
-        kf_css += _keyframes(f"a{i}", ai_plan[i][0], ai_plan[i][1], total, cell, cfg.step)
+    for i, (s_t, s_off, e_off) in ai_plan.items():
+        kf_css += _keyframes(f"a{i}", s_t, s_off, total, cell, cfg.step, e_off)
 
-    if lc_active and complete_rows:
-        kf_css += _lc_flash_css(total, flash_start, flash_end)
-        kf_css += _lc_fade_css(total, clear_start, clear_end)
-        if has_cut_edges:
-            kf_css += _lc_appear_css(total, clear_start, clear_end)
-        kf_css += "".join(drop_keyframes.values())
+    for s in stages:
+        kf_css += _lc_flash_css(f"lc-flash-s{s.index}", total, s.flash_start, s.flash_end)
+        kf_css += _lc_fade_css(f"lc-fade-s{s.index}", total, s.clear_start, s.clear_end)
+        if s.index in appear_stages:
+            kf_css += _lc_appear_css(f"lc-appear-s{s.index}", total, s.clear_start, s.clear_end)
+
+    for segs, name in drop_reg.items():
+        kf_css += _lc_drop_segments_css(name, total, segs)
 
     reduced_classes = ".p"
-    if lc_active and complete_rows:
+    if stages:
         reduced_classes = ".p,.lc,.fl"
 
     out: list[str] = [
@@ -537,24 +708,14 @@ def generate(
             )
 
     out.append('<g clip-path="url(#well)">')
+    out.extend(out_pieces)
 
-    row_filter = complete_rows if (lc_active and complete_rows) else None
-    for i, piece in enumerate(pieces):
-        out.append(_piece_svg(
-            piece, f"f{i}", total, max_h, cell, cfg.border_color, cfg.background, row_filter
-        ))
-
-    for i, ap in enumerate(ai_pieces):
-        out.append(_piece_svg(
-            ap, f"a{i}", total, max_h, cell, cfg.border_color, cfg.background, row_filter
-        ))
-
-    if lc_active and complete_rows:
-        anim_dur = f"{total:.2f}s"
-        flash_style = f"animation:lc-flash {anim_dur} linear 1 both"
-        for r in sorted(complete_rows):
+    anim_dur = f"{total:.2f}s"
+    for s in stages:
+        flash_style = f"animation:lc-flash-s{s.index} {anim_dur} linear 1 both"
+        for vr in s.visual_rows:
             x = PAD_X
-            y = PAD_TOP + (max_h - 1 - r) * cell
+            y = PAD_TOP + (max_h - 1 - vr) * cell
             out.append(
                 f'<rect class="fl" x="{x}" y="{y}" '
                 f'width="{display_cols * cell}" height="{cell}" '

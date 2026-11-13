@@ -148,11 +148,13 @@ class TestLineClear:
 
     def test_flash_keyframe(self):
         svg, _ = _make_svg()
-        assert "@keyframes lc-flash" in svg
+        assert "@keyframes lc-flash-s0" in svg
+        assert "@keyframes lc-flash-s1" in svg
 
     def test_fade_keyframe(self):
         svg, _ = _make_svg()
-        assert "@keyframes lc-fade" in svg
+        assert "@keyframes lc-fade-s0" in svg
+        assert "@keyframes lc-fade-s1" in svg
 
     def test_drop_keyframe(self):
         svg, _ = _make_svg()
@@ -204,24 +206,23 @@ class TestLineClear:
         ET.fromstring(svg)
 
     def test_partial_piece_surviving_cells_preserved(self):
-        import re
-
         svg, _ = _make_svg()
-        assert "@keyframes lc-appear" in svg
-        # Mixed pieces (e.g. JAVASCRIPT, TYPESCRIPT, SWIFT, JAVA) have both lc-fade and lc-drop-6
-        assert svg.count("animation:lc-drop-6") >= 6
-        assert svg.count("animation:lc-appear") >= 4
+        assert "@keyframes lc-appear-s0" in svg
+        assert "@keyframes lc-appear-s1" in svg
+        # Stage 0 cuts 5 pieces (LANGCHAIN, LANGGRAPH, OLLAMA, FASTAPI, PYTORCH);
+        # Stage 1 cuts 4 pieces (JAVA, SWIFT, JAVASCRIPT, TYPESCRIPT).
+        assert svg.count("animation:lc-appear-s0") >= 4
+        assert svg.count("animation:lc-appear-s1") >= 4
+        assert svg.count("animation:lc-drop-") >= 10
 
     def test_ai_pieces_drop_without_overtaking(self):
         import re
 
         svg, _ = _make_svg()
-        # Each AI piece a{i} must start after a{i-1} finishes falling
+        # Each AI piece a{i} must start after a{i-1} finishes falling (and after its stage clears)
         end_times = []
         start_times = []
         for idx in range(3):
-            m = re.search(rf"@keyframes a{idx}\{{([^}}]*(?:\}}[^}}]*)*)\}}\}}", svg)
-            # Extract all percentage timestamps in the keyframe block
             block_start = svg.index(f"@keyframes a{idx}{{")
             depth = 0
             block_end = block_start
@@ -240,7 +241,26 @@ class TestLineClear:
         assert start_times[1] > end_times[0]
         assert start_times[2] > end_times[1]
 
-    def test_antigravity_label_wrapped(self):
-        svg, _ = _make_svg()
-        assert ">ANTI-</text>" in svg
-        assert ">GRAVITY</text>" in svg
+    def test_antigravity_l_shape_and_top_logos(self):
+        from stacktris.config import default_config
+        from stacktris.generator import _create_ai_pieces, _find_complete_rows, _label_and_icon
+        from stacktris.layout import pack_skills
+
+        cfg = default_config()
+        pieces, heights = pack_skills(cfg.skills, cfg.board_columns, cfg.seed)
+        max_h = max(heights)
+        cr = _find_complete_rows(pieces, cfg.board_columns, max_h)
+        ai = _create_ai_pieces(cfg.get_line_clear_skills(), cfg.board_columns, max_h, pieces, cr)
+        assert ai[2].skill.label == "ANTIGRAVITY"
+        assert ai[2].cells == [(12, 6), (13, 6), (14, 6), (14, 7)]
+
+        # Surviving top pieces keep their logos in the upper rows (>= 6)
+        for name in ("SWIFT", "JAVASCRIPT", "PYTHON", "TYPESCRIPT", "JAVA"):
+            p = next(x for x in pieces if x.skill.label == name)
+            _, _, _, _, icon_cell = _label_and_icon(
+                p.skill.label, p.cells, "#fff", "#000", max_h, cfg.cell_size
+            )
+            assert icon_cell[1] >= 6, f"{name} icon landed on row {icon_cell[1]}"
+
+        svg, _ = _make_svg(cfg)
+        assert ">ANTIGRAVITY</text>" in svg

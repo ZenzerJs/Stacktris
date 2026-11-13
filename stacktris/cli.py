@@ -63,8 +63,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--stagger",
         type=float,
-        default=0.22,
-        help="delay between pieces in a wave (default: 0.22)",
+        default=0.36,
+        help="delay between pieces in a wave (default: 0.36)",
     )
     p.add_argument(
         "--title",

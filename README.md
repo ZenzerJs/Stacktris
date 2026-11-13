@@ -102,7 +102,7 @@ python3 -m stacktris --step 0.05 --stagger 0.15 --seed 42 --title "MY STACK"
 | `--columns` | `14` | Board width in columns |
 | `--cell-size` | `56` | Cell size in pixels |
 | `--step` | `0.07` | Seconds per row drop tick |
-| `--stagger` | `0.22` | Delay between pieces in a wave |
+| `--stagger` | `0.36` | Delay between pieces in a wave |
 | `--title` | `STACK` | Title text at top of graphic |
 | `--no-line-clear` | — | Disable the line-clear finale |
 | `--list-skills` | — | Print built-in skill names and exit |
@@ -146,8 +146,8 @@ For full control, use a JSON config file:
 | `cell_size` | int | `56` | Cell size in pixels |
 | `seed` | int | `11` | Random seed |
 | `step` | float | `0.07` | Drop speed (seconds per row) |
-| `stagger` | float | `0.22` | Intra-wave delay |
-| `wave_pause` | float | `0.22` | Pause between waves |
+| `stagger` | float | `0.36` | Intra-wave delay |
+| `wave_pause` | float | `0.34` | Pause between waves |
 | `start_delay` | float | `0.4` | Delay before first drop |
 | `hold` | float | `0.6` | Rest time after board is complete |
 | `title` | string | `STACK` | Header text |
@@ -207,7 +207,7 @@ See the [`examples/`](examples/) directory for ready-to-use configs.
 
 ## 🧹 Line-Clear Finale
 
-By default, the board is one column wider than `board_columns`. After the normal skill pieces finish stacking, AI tool pieces (Cursor, Claude, Antigravity) drop into the gap column, completing rows that then flash and clear — just like real Tetris. The joke: AI tools overhauling your stack.
+By default, the board is one column wider than `board_columns`. After the normal skill pieces finish stacking, AI tool pieces drop sequentially into the gap column in stages — Cursor completes and clears the bottom 3 rows, Claude drops to complete and clear the next 3 rows, and Antigravity lands as an L-tetromino alongside the surviving top skills. The joke: AI tools overhauling your stack.
 
 - **Enabled by default.** Pass `--no-line-clear` or set `"line_clear": false` in your JSON config to disable.
 - **Configurable AI tools.** Override the default trio via `line_clear_skills` in JSON config or the `line_clear_skills` field on `Config`.
