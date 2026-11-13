@@ -173,9 +173,9 @@ See the [`examples/`](examples/) directory for ready-to-use configs.
 
 | Skill | Colour | Icon |
 |---|---|---|
-| Antigravity | `#a855f7` | antigravity |
+| Antigravity | `#3186ff` | antigravity |
 | Claude | `#d97757` | claude |
-| Cursor | `#00a2ff` | cursor |
+| Cursor | `#000000` | cursor |
 | Docker | `#2496ed` | docker |
 | FastAPI | `#009688` | fastapi |
 | GitHub Actions | `#2088ff` | githubactions |

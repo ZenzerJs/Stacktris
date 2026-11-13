@@ -160,10 +160,12 @@ class TestLineClearConfig:
         cfg = default_config()
         lc = cfg.get_line_clear_skills()
         assert len(lc) == 3
-        labels = {s.label for s in lc}
-        assert "CURSOR" in labels
-        assert "CLAUDE" in labels
-        assert "ANTIGRAVITY" in labels
+        by_label = {s.label: s.color for s in lc}
+        assert by_label == {
+            "CURSOR": "#000000",
+            "CLAUDE": "#d97757",
+            "ANTIGRAVITY": "#3186ff",
+        }
 
     def test_get_line_clear_skills_custom(self):
         custom = [SkillEntry(label="MY AI", color="#ff0000", icon="cursor")]
