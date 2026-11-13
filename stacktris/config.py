@@ -36,16 +36,24 @@ class Config:
     cell_size: int = 56
     board_columns: int = 14
     step: float = 0.07
-    stagger: float = 0.22
-    wave_pause: float = 0.22
+    stagger: float = 0.36
+    wave_pause: float = 0.34
     start_delay: float = 0.4
     hold: float = 0.6
     seed: int = 11
     title: str = "STACK"
-    background: str = "#0b1020"
+    background: str = "#0d1117"
     grid_color: str = "#141b33"
     separator_color: str = "#2a3558"
     border_color: str = "#050814"
+    line_clear: bool = True
+    line_clear_skills: list[SkillEntry] | None = None
+
+    def get_line_clear_skills(self) -> list[SkillEntry]:
+        """Return line-clear AI tool skills, using defaults when not set."""
+        if self.line_clear_skills is not None:
+            return self.line_clear_skills
+        return default_line_clear_skills()
 
     def __post_init__(self) -> None:
         if not self.skills:
@@ -66,6 +74,15 @@ class Config:
             val = getattr(self, attr)
             if not _HEX_RE.match(val):
                 raise ValueError(f"invalid hex colour {val!r} for {attr}")
+
+
+def default_line_clear_skills() -> list[SkillEntry]:
+    """Default AI tool skills used for the line-clear finale."""
+    return [
+        SkillEntry(label="CURSOR", color="#000000", icon="cursor"),
+        SkillEntry(label="CLAUDE", color="#d97757", icon="claude"),
+        SkillEntry(label="ANTIGRAVITY", color="#3186ff", icon="antigravity"),
+    ]
 
 
 def default_config() -> Config:
@@ -119,8 +136,13 @@ def load_config(path: str | Path) -> Config:
     for key in (
         "cell_size", "board_columns", "step", "stagger", "wave_pause",
         "start_delay", "hold", "seed", "title", "background", "grid_color",
-        "separator_color", "border_color",
+        "separator_color", "border_color", "line_clear",
     ):
         if key in data:
             kwargs[key] = data[key]
+    lc_raw = data.get("line_clear_skills")
+    if lc_raw is not None:
+        if not isinstance(lc_raw, list) or not lc_raw:
+            raise ValueError("'line_clear_skills' must be a non-empty list")
+        kwargs["line_clear_skills"] = [_resolve_skill(s) for s in lc_raw]
     return Config(**kwargs)

@@ -113,3 +113,32 @@ class TestCLIConfig:
             r = run_cli("-c", cfg, expect_fail=True)
             assert r.returncode == 1
             assert "non-empty" in r.stderr
+
+
+class TestCLILineClear:
+    def test_default_has_line_clear(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "test.svg")
+            run_cli("-o", out)
+            svg = Path(out).read_text()
+            assert "lc-flash" in svg
+            assert "@keyframes a0" in svg
+
+    def test_no_line_clear_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "test.svg")
+            run_cli("-o", out, "--no-line-clear")
+            svg = Path(out).read_text()
+            assert "lc-flash" not in svg
+            assert "@keyframes a0" not in svg
+
+    def test_no_line_clear_with_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg_path = os.path.join(tmp, "cfg.json")
+            out = os.path.join(tmp, "test.svg")
+            Path(cfg_path).write_text(
+                '{"skills": [{"label": "Python"}, {"label": "Docker"}], "board_columns": 6}'
+            )
+            run_cli("-c", cfg_path, "-o", out, "--no-line-clear")
+            svg = Path(out).read_text()
+            assert "lc-flash" not in svg
