@@ -142,3 +142,13 @@ class TestCLILineClear:
             run_cli("-c", cfg_path, "-o", out, "--no-line-clear")
             svg = Path(out).read_text()
             assert "lc-flash" not in svg
+
+    def test_default_loops_and_no_loop_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out_loop = os.path.join(tmp, "loop.svg")
+            out_once = os.path.join(tmp, "once.svg")
+            run_cli("-o", out_loop)
+            run_cli("-o", out_once, "--no-loop")
+            assert "linear infinite" in Path(out_loop).read_text()
+            assert "linear 1 both" in Path(out_once).read_text()
+            assert "linear infinite" not in Path(out_once).read_text()

@@ -289,3 +289,15 @@ class TestLineClear:
         )
         assert label_row == 4
         assert icon_cell == (14, 5)
+
+    def test_loop_mode_default_and_disabled(self):
+        cfg_loop = default_config()
+        svg_loop, _ = _make_svg(cfg_loop)
+        assert "linear infinite" in svg_loop
+        assert "linear 1 both" not in svg_loop
+
+        cfg_once = default_config()
+        cfg_once.loop = False
+        svg_once, _ = _make_svg(cfg_once)
+        assert "linear 1 both" in svg_once
+        assert "linear infinite" not in svg_once

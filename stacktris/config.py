@@ -39,7 +39,7 @@ class Config:
     stagger: float = 0.36
     wave_pause: float = 0.34
     start_delay: float = 0.4
-    hold: float = 0.6
+    hold: float = 1.5
     seed: int = 11
     title: str = "STACK"
     background: str = "#0d1117"
@@ -48,6 +48,7 @@ class Config:
     border_color: str = "#050814"
     line_clear: bool = True
     line_clear_skills: list[SkillEntry] | None = None
+    loop: bool = True
 
     def get_line_clear_skills(self) -> list[SkillEntry]:
         """Return line-clear AI tool skills, using defaults when not set."""
@@ -136,7 +137,7 @@ def load_config(path: str | Path) -> Config:
     for key in (
         "cell_size", "board_columns", "step", "stagger", "wave_pause",
         "start_delay", "hold", "seed", "title", "background", "grid_color",
-        "separator_color", "border_color", "line_clear",
+        "separator_color", "border_color", "line_clear", "loop",
     ):
         if key in data:
             kwargs[key] = data[key]

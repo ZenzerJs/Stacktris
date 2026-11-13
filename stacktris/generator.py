@@ -439,6 +439,7 @@ def _piece_svg(
     stage_start: int = 0,
     drop_reg: dict[tuple[tuple[float, float, int, int], ...], str] | None = None,
     appear_stages: set[int] | None = None,
+    loop: bool = True,
 ) -> str:
     """Render a single piece group (normal or AI-tool), handling multi-stage line clears."""
     base = piece.skill.color
@@ -447,7 +448,8 @@ def _piece_svg(
     text_color = bg if dark_text else "#ffffff"
     shadow = "#ffffff" if dark_text else "#000000"
     anim_dur = f"{total:.2f}s"
-    style = f"animation:{anim_name} {anim_dur} linear 1 both"
+    iter_mode = "infinite" if loop else "1 both"
+    style = f"animation:{anim_name} {anim_dur} linear {iter_mode}"
 
     text, ix, iy, label_row, icon_cell = _label_and_icon(
         piece.skill.label, piece.cells, text_color, shadow, max_h, cell
@@ -485,10 +487,10 @@ def _piece_svg(
         parts.append(text)
         content = "".join(parts)
         if clear_idx is not None:
-            content = f'<g class="lc" style="animation:lc-fade-s{clear_idx} {anim_dur} linear 1 both">{content}</g>'
+            content = f'<g class="lc" style="animation:lc-fade-s{clear_idx} {anim_dur} linear {iter_mode}">{content}</g>'
         drop_name = _register_drop(segs)
         if drop_name is not None:
-            content = f'<g class="lc" style="animation:{drop_name} {anim_dur} linear 1 both">{content}</g>'
+            content = f'<g class="lc" style="animation:{drop_name} {anim_dur} linear {iter_mode}">{content}</g>'
         return f'<g class="p" style="{style}">{content}</g>'
 
     full_set = set(piece.cells)
@@ -509,7 +511,7 @@ def _piece_svg(
             if appear_stages is not None:
                 appear_stages.add(cs)
             g_parts.append(
-                f'<g class="lc" opacity="0" style="animation:lc-appear-s{cs} {anim_dur} linear 1 both">{cut_svg}</g>'
+                f'<g class="lc" opacity="0" style="animation:lc-appear-s{cs} {anim_dur} linear {iter_mode}">{cut_svg}</g>'
             )
 
         if icon_cell in g_set:
@@ -520,10 +522,10 @@ def _piece_svg(
 
         g_content = "".join(g_parts)
         if clear_idx is not None:
-            g_content = f'<g class="lc" style="animation:lc-fade-s{clear_idx} {anim_dur} linear 1 both">{g_content}</g>'
+            g_content = f'<g class="lc" style="animation:lc-fade-s{clear_idx} {anim_dur} linear {iter_mode}">{g_content}</g>'
         drop_name = _register_drop(segs)
         if drop_name is not None:
-            g_content = f'<g class="lc" style="animation:{drop_name} {anim_dur} linear 1 both">{g_content}</g>'
+            g_content = f'<g class="lc" style="animation:{drop_name} {anim_dur} linear {iter_mode}">{g_content}</g>'
         layers.append(g_content)
 
     return f'<g class="p" style="{style}">{"".join(layers)}</g>'
@@ -642,6 +644,7 @@ def generate(
                 0,
                 drop_reg,
                 appear_stages,
+                cfg.loop,
             )
         )
 
@@ -659,6 +662,7 @@ def generate(
                 ai_stage_start[i],
                 drop_reg,
                 appear_stages,
+                cfg.loop,
             )
         )
 
@@ -716,8 +720,9 @@ def generate(
     out.extend(out_pieces)
 
     anim_dur = f"{total:.2f}s"
+    iter_mode = "infinite" if cfg.loop else "1 both"
     for s in stages:
-        flash_style = f"animation:lc-flash-s{s.index} {anim_dur} linear 1 both"
+        flash_style = f"animation:lc-flash-s{s.index} {anim_dur} linear {iter_mode}"
         for vr in s.visual_rows:
             x = PAD_X
             y = PAD_TOP + (max_h - 1 - vr) * cell

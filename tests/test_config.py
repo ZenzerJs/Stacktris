@@ -181,3 +181,13 @@ class TestLineClearConfig:
         for s in skills:
             assert s.color.startswith("#")
             assert s.icon
+
+    def test_default_loop_enabled_and_loadable(self):
+        cfg = default_config()
+        assert cfg.loop is True
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump({"skills": [{"label": "Python"}], "loop": False}, f)
+            f.flush()
+            loaded = load_config(f.name)
+        assert loaded.loop is False
+        Path(f.name).unlink()

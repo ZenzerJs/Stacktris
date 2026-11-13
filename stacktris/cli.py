@@ -77,6 +77,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="disable the Tetris-style line-clear finale (AI tools filling the gap column)",
     )
     p.add_argument(
+        "--no-loop",
+        action="store_true",
+        help="play the animation once instead of looping automatically",
+    )
+    p.add_argument(
         "--list-skills",
         action="store_true",
         help="print supported built-in skill names and exit",
@@ -101,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         if args.no_line_clear:
             cfg.line_clear = False
+        if args.no_loop:
+            cfg.loop = False
     elif args.skills:
         skills: list[SkillEntry] = []
         for name in args.skills:
@@ -123,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
             stagger=args.stagger,
             title=args.title,
             line_clear=not args.no_line_clear,
+            loop=not args.no_loop,
         )
     else:
         cfg = default_config()
@@ -134,6 +142,8 @@ def main(argv: list[str] | None = None) -> int:
         cfg.title = args.title
         if args.no_line_clear:
             cfg.line_clear = False
+        if args.no_loop:
+            cfg.loop = False
 
     try:
         pieces, heights = pack_skills(cfg.skills, cfg.board_columns, cfg.seed)
