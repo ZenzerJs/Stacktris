@@ -443,6 +443,15 @@ ICONS: dict[str, str] = {
         "V6.325c0-.502.569-.792.975-.497l6.358 4.624c.594.433 1.432.25 1.793-.39"
         "L14.393.7a.62.62 0 0 1 .535-.314h8.455a.613.613 0 0 1 .537.916z"
     ),
+    "cursor": (
+        "M5.5 0.5L5.5 19.5 10.5 14.5 14 22 17 20 13 12.5 18 12.5Z"
+    ),
+    "claude": (
+        "M12 0L14.5 9.5 24 12 14.5 14.5 12 24 9.5 14.5 0 12 9.5 9.5Z"
+    ),
+    "antigravity": (
+        "M12 0L7 10 10 10 10 19 14 19 14 10 17 10ZM10 21L14 21 14 24 10 24Z"
+    ),
 }
 
 SUPPORTED_TECHS: dict[str, tuple[str, str]] = {
@@ -470,4 +479,7 @@ SUPPORTED_TECHS: dict[str, tuple[str, str]] = {
     "JAVASCRIPT": ("#f7df1e", "javascript"),
     "TYPESCRIPT": ("#3178c6", "typescript"),
     "PYTHON": ("#3776ab", "python"),
+    "CURSOR": ("#00a2ff", "cursor"),
+    "CLAUDE": ("#d4a574", "claude"),
+    "ANTIGRAVITY": ("#a855f7", "antigravity"),
 }

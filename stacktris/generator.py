@@ -130,6 +130,12 @@ def _label_and_icon(
         icon_cell = (cs[0], r_best)
         label_cells = cs[1:]
 
+    ix = PAD_X + (icon_cell[0] + 0.5) * cell
+    iy = PAD_TOP + (max_h - 1 - icon_cell[1]) * cell + cell / 2
+
+    if not label_cells:
+        return "", ix, iy
+
     cx = PAD_X + (label_cells[0] + label_cells[-1] + 1) / 2 * cell
     cy = PAD_TOP + (max_h - 1 - r_best) * cell + cell / 2
     run_px = len(label_cells) * cell - 14
@@ -149,8 +155,6 @@ def _label_and_icon(
             f'<text x="{cx:.1f}" y="{cy + fs * .6:.1f}" font-size="{fs:.1f}" style="{style}">{lines[1]}</text>'
         )
 
-    ix = PAD_X + (icon_cell[0] + 0.5) * cell
-    iy = PAD_TOP + (max_h - 1 - icon_cell[1]) * cell + cell / 2
     return text, ix, iy
 
 
@@ -204,7 +208,7 @@ def _plan_waves(
     return plan, t
 
 
-def _keyframes(i: int, start: float, rows: int, total: float, cell: int, step: float) -> str:
+def _keyframes(name: str, start: float, rows: int, total: float, cell: int, step: float) -> str:
     def pct(s: float) -> str:
         return f"{s / total * 100:.3f}%"
 
@@ -215,7 +219,117 @@ def _keyframes(i: int, start: float, rows: int, total: float, cell: int, step: f
             f"{pct(start + k * step)}{{transform:translateY({-(rows - k) * cell}px);{hold}}}"
         )
     stops.append("100%{transform:translateY(0)}")
-    return f"@keyframes f{i}{{{''.join(stops)}}}"
+    return f"@keyframes {name}{{{''.join(stops)}}}"
+
+
+def _find_complete_rows(
+    pieces: list[PlacedPiece], cols: int, max_h: int
+) -> set[int]:
+    """Return the set of row indices that are fully filled across all *cols* columns."""
+    occupied: set[tuple[int, int]] = set()
+    for p in pieces:
+        for cell in p.cells:
+            occupied.add(cell)
+    return {r for r in range(max_h) if all((c, r) in occupied for c in range(cols))}
+
+
+def _create_ai_pieces(
+    skills: list[SkillEntry], extra_col: int, max_h: int
+) -> list[PlacedPiece]:
+    """Create vertical AI-tool pieces that fill the extra column from row 0 to max_h-1."""
+    used = skills[:max_h]
+    n = len(used)
+    if n == 0:
+        return []
+    rows_per = max_h // n
+    remainder = max_h % n
+    result: list[PlacedPiece] = []
+    row = 0
+    for i, skill in enumerate(used):
+        n_rows = rows_per + (1 if i < remainder else 0)
+        cells = [(extra_col, row + j) for j in range(n_rows)]
+        result.append(PlacedPiece(skill=skill, cells=cells))
+        row += n_rows
+    return result
+
+
+def _lc_flash_css(total: float, flash_start: float, flash_end: float) -> str:
+    pct = lambda t: f"{t / total * 100:.3f}%"
+    mid = (flash_start + flash_end) / 2
+    return (
+        "@keyframes lc-flash{"
+        f"0%{{opacity:0}}"
+        f"{pct(flash_start)}{{opacity:0}}"
+        f"{pct(mid)}{{opacity:.7}}"
+        f"{pct(flash_end)}{{opacity:0}}"
+        "100%{opacity:0}}"
+    )
+
+
+def _lc_fade_css(total: float, clear_start: float, clear_end: float) -> str:
+    pct = lambda t: f"{t / total * 100:.3f}%"
+    return (
+        "@keyframes lc-fade{"
+        f"0%{{opacity:1}}"
+        f"{pct(clear_start)}{{opacity:1}}"
+        f"{pct(clear_end)}{{opacity:0}}"
+        "100%{opacity:0}}"
+    )
+
+
+def _lc_drop_css(
+    name: str, total: float, drop_start: float, drop_end: float, drop_px: int
+) -> str:
+    pct = lambda t: f"{t / total * 100:.3f}%"
+    return (
+        f"@keyframes {name}{{"
+        f"0%{{transform:translateY(0)}}"
+        f"{pct(drop_start)}{{transform:translateY(0);animation-timing-function:ease-in}}"
+        f"{pct(drop_end)}{{transform:translateY({drop_px}px)}}"
+        f"100%{{transform:translateY({drop_px}px)}}"
+        "}}"
+    )
+
+
+_LC_AI_PAUSE = 0.25
+_LC_AI_STAGGER = 0.15
+_LC_PAUSE = 0.2
+_LC_FLASH = 0.3
+_LC_SETTLE = 0.4
+
+
+def _piece_svg(
+    piece: PlacedPiece,
+    anim_name: str,
+    total: float,
+    max_h: int,
+    cell: int,
+    border_color: str,
+    bg: str,
+    inner_style: str | None = None,
+) -> str:
+    """Render a single piece group (normal or AI-tool)."""
+    base = piece.skill.color
+    icon_name = piece.skill.icon
+    dark_text = _luminance(base) > 165
+    text_color = bg if dark_text else "#ffffff"
+    shadow = "#ffffff" if dark_text else "#000000"
+    style = f"animation:{anim_name} {total:.2f}s linear 1 both"
+
+    parts: list[str] = []
+    for c, r in piece.cells:
+        parts.append(_cell_svg(c, r, base, max_h, cell))
+    parts.append(_outline_svg(piece.cells, max_h, cell, border_color))
+    text, ix, iy = _label_and_icon(
+        piece.skill.label, piece.cells, text_color, shadow, max_h, cell
+    )
+    parts.append(_icon_svg(icon_name, ix, iy, text_color, shadow))
+    parts.append(text)
+    content = "".join(parts)
+
+    if inner_style:
+        content = f'<g class="lc" style="{inner_style}">{content}</g>'
+    return f'<g class="p" style="{style}">{content}</g>'
 
 
 def generate(
@@ -227,21 +341,98 @@ def generate(
     cols = cfg.board_columns
     cell = cfg.cell_size
     max_h = max(heights) if heights else 1
-    w = PAD_X * 2 + cols * cell
-    h = PAD_TOP + max_h * cell + PAD_BOT
 
     validate_layout(pieces, cols, heights)
-    plan, end = _plan_waves(pieces, heights, cfg)
-    total = end + cfg.hold
+    plan, normal_end = _plan_waves(pieces, heights, cfg)
+
+    lc_active = cfg.line_clear and max_h > 0
+    complete_rows: set[int] = set()
+    ai_pieces: list[PlacedPiece] = []
+    ai_plan: dict[int, tuple[float, int]] = {}
+    piece_lc: dict[int, str | None] = {}
+    ai_lc: dict[int, str | None] = {}
+    drop_keyframes: dict[int, str] = {}
+
+    if lc_active:
+        display_cols = cols + 1
+        lc_skills = cfg.get_line_clear_skills()
+        complete_rows = _find_complete_rows(pieces, cols, max_h)
+        ai_pieces = _create_ai_pieces(lc_skills, cols, max_h)
+
+        ai_start = normal_end + _LC_AI_PAUSE
+        for i, ap in enumerate(ai_pieces):
+            start_t = ai_start + i * _LC_AI_STAGGER
+            rows_fall = max_h + 1 - min(r for _, r in ap.cells)
+            ai_plan[i] = (start_t, rows_fall)
+        ai_end = max(
+            ai_plan[i][0] + ai_plan[i][1] * cfg.step for i in ai_plan
+        ) if ai_plan else ai_start
+
+        if complete_rows:
+            flash_start = ai_end + _LC_PAUSE
+            flash_end = flash_start + _LC_FLASH
+            clear_start = flash_end
+            clear_end = clear_start + _LC_SETTLE * 0.5
+            drop_start = flash_end
+            drop_end = drop_start + _LC_SETTLE
+            total = drop_end + cfg.hold
+
+            for i, p in enumerate(pieces):
+                cell_rows = {r for _, r in p.cells}
+                if cell_rows & complete_rows:
+                    piece_lc[i] = "fade"
+                else:
+                    min_r = min(r for _, r in p.cells)
+                    n_drop = sum(1 for r in complete_rows if r < min_r)
+                    if n_drop > 0:
+                        piece_lc[i] = f"drop-{n_drop}"
+                        drop_keyframes[n_drop] = _lc_drop_css(
+                            f"lc-drop-{n_drop}", total, drop_start, drop_end, n_drop * cell
+                        )
+
+            for i, ap in enumerate(ai_pieces):
+                cell_rows = {r for _, r in ap.cells}
+                if cell_rows & complete_rows:
+                    ai_lc[i] = "fade"
+                else:
+                    min_r = min(r for _, r in ap.cells)
+                    n_drop = sum(1 for r in complete_rows if r < min_r)
+                    if n_drop > 0:
+                        ai_lc[i] = f"drop-{n_drop}"
+                        drop_keyframes[n_drop] = _lc_drop_css(
+                            f"lc-drop-{n_drop}", total, drop_start, drop_end, n_drop * cell
+                        )
+        else:
+            total = ai_end + cfg.hold
+    else:
+        display_cols = cols
+        total = normal_end + cfg.hold
+
+    w = PAD_X * 2 + display_cols * cell
+    h = PAD_TOP + max_h * cell + PAD_BOT
 
     title_escaped = xml_escape(cfg.title)
-    desc = f"Falling-block graphic showing tech skills: {', '.join(p.skill.label for p in pieces)}"
+    all_labels = [p.skill.label for p in pieces]
+    if ai_pieces:
+        all_labels += [ap.skill.label for ap in ai_pieces]
+    desc = f"Falling-block graphic showing tech skills: {', '.join(all_labels)}"
     desc_escaped = xml_escape(desc)
 
     kf_css = "".join(
-        _keyframes(i, plan[i][0], plan[i][1], total, cell, cfg.step)
+        _keyframes(f"f{i}", plan[i][0], plan[i][1], total, cell, cfg.step)
         for i in range(len(pieces))
     )
+    for i in ai_plan:
+        kf_css += _keyframes(f"a{i}", ai_plan[i][0], ai_plan[i][1], total, cell, cfg.step)
+
+    if lc_active and complete_rows:
+        kf_css += _lc_flash_css(total, flash_start, flash_end)
+        kf_css += _lc_fade_css(total, clear_start, clear_end)
+        kf_css += "".join(drop_keyframes.values())
+
+    reduced_classes = ".p"
+    if lc_active and complete_rows:
+        reduced_classes = ".p,.lc,.fl"
 
     out: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
@@ -254,7 +445,7 @@ def generate(
         "stroke-width:3px;paint-order:stroke;text-anchor:middle;dominant-baseline:central;"
         "letter-spacing:.4px}"
         ".t{font-size:30px;text-anchor:start;fill:#fff;stroke:none;letter-spacing:1px}"
-        "@media (prefers-reduced-motion:reduce){.p{animation:none!important}}"
+        f"@media (prefers-reduced-motion:reduce){{{reduced_classes}{{animation:none!important}}}}"
         + kf_css
         + "</style>",
         f'<defs><clipPath id="well"><rect x="0" y="{PAD_TOP - 4}" '
@@ -265,7 +456,7 @@ def generate(
         f'stroke="{cfg.separator_color}" stroke-width="2"/>',
     ]
 
-    for c in range(cols):
+    for c in range(display_cols):
         for r in range(max_h):
             x, y = _px(c, r, max_h, cell)
             out.append(
@@ -274,24 +465,40 @@ def generate(
             )
 
     out.append('<g clip-path="url(#well)">')
+
+    anim_dur = f"{total:.2f}s"
     for i, piece in enumerate(pieces):
-        base = piece.skill.color
-        icon_name = piece.skill.icon
-        dark_text = _luminance(base) > 165
-        text_color = cfg.background if dark_text else "#ffffff"
-        shadow = "#ffffff" if dark_text else "#000000"
-        style = f"animation:f{i} {total:.2f}s linear 1 both"
-        g: list[str] = [f'<g class="p" style="{style}">']
-        for c, r in piece.cells:
-            g.append(_cell_svg(c, r, base, max_h, cell))
-        g.append(_outline_svg(piece.cells, max_h, cell, cfg.border_color))
-        text, ix, iy = _label_and_icon(
-            piece.skill.label, piece.cells, text_color, shadow, max_h, cell
-        )
-        g.append(_icon_svg(icon_name, ix, iy, text_color, shadow))
-        g.append(text)
-        g.append("</g>")
-        out.append("".join(g))
+        inner = None
+        lc_type = piece_lc.get(i)
+        if lc_type == "fade":
+            inner = f"animation:lc-fade {anim_dur} linear 1 both"
+        elif lc_type is not None:
+            inner = f"animation:lc-{lc_type} {anim_dur} linear 1 both"
+        out.append(_piece_svg(
+            piece, f"f{i}", total, max_h, cell, cfg.border_color, cfg.background, inner
+        ))
+
+    for i, ap in enumerate(ai_pieces):
+        inner = None
+        lc_type = ai_lc.get(i)
+        if lc_type == "fade":
+            inner = f"animation:lc-fade {anim_dur} linear 1 both"
+        elif lc_type is not None:
+            inner = f"animation:lc-{lc_type} {anim_dur} linear 1 both"
+        out.append(_piece_svg(
+            ap, f"a{i}", total, max_h, cell, cfg.border_color, cfg.background, inner
+        ))
+
+    if lc_active and complete_rows:
+        flash_style = f"animation:lc-flash {anim_dur} linear 1 both"
+        for r in sorted(complete_rows):
+            x = PAD_X
+            y = PAD_TOP + (max_h - 1 - r) * cell
+            out.append(
+                f'<rect class="fl" x="{x}" y="{y}" '
+                f'width="{display_cols * cell}" height="{cell}" '
+                f'fill="#ffffff" opacity="0" style="{flash_style}"/>'
+            )
 
     out.append("</g></svg>")
     return "\n".join(out), total

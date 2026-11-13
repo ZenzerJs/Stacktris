@@ -51,11 +51,12 @@ Pick your skills, colours, and drop timing — Stacktris packs them as tetromino
 
 - **Zero dependencies** — uses only the Python standard library (Python 3.10+)
 - **CLI and JSON config** — generate from the command line or a config file
-- **24 built-in skills** — brand colours and Simple Icons logos for common technologies
+- **27 built-in skills** — brand colours and logos for common technologies plus AI tools
 - **Custom colours and timing** — override any colour, drop speed, stagger delay, or random seed
 - **Reproducible output** — same seed and skills always produce the same SVG
 - **Safe SVG** — no `<script>`, no `xlink:href`, no external URLs, proper XML escaping
 - **`prefers-reduced-motion`** — CSS animation disabled instantly for users who prefer it
+- **Line-clear finale** — AI tool pieces (Cursor, Claude, Antigravity) fill a gap column, completing rows that then flash and clear like real Tetris
 
 ---
 
@@ -103,6 +104,7 @@ python3 -m stacktris --step 0.05 --stagger 0.15 --seed 42 --title "MY STACK"
 | `--step` | `0.07` | Seconds per row drop tick |
 | `--stagger` | `0.22` | Delay between pieces in a wave |
 | `--title` | `STACK` | Title text at top of graphic |
+| `--no-line-clear` | — | Disable the line-clear finale |
 | `--list-skills` | — | Print built-in skill names and exit |
 | `--version` | — | Print version and exit |
 
@@ -153,6 +155,8 @@ For full control, use a JSON config file:
 | `grid_color` | string | `#141b33` | Grid line colour |
 | `separator_color` | string | `#2a3558` | Title separator colour |
 | `border_color` | string | `#050814` | Piece outline colour |
+| `line_clear` | bool | `true` | Enable Tetris line-clear finale |
+| `line_clear_skills` | array | auto | AI tool skills for the gap column (defaults to Cursor, Claude, Antigravity) |
 
 </details>
 
@@ -162,13 +166,16 @@ See the [`examples/`](examples/) directory for ready-to-use configs.
 
 ## 🗂️ Supported Skills
 
-24 built-in skills with brand colours and [Simple Icons](https://simpleicons.org) logos:
+27 built-in skills with brand colours and logos:
 
 <details>
 <summary><strong>View full list</strong></summary>
 
 | Skill | Colour | Icon |
 |---|---|---|
+| Antigravity | `#a855f7` | antigravity |
+| Claude | `#d4a574` | claude |
+| Cursor | `#00a2ff` | cursor |
 | Docker | `#2496ed` | docker |
 | FastAPI | `#009688` | fastapi |
 | GitHub Actions | `#2088ff` | githubactions |
@@ -195,6 +202,17 @@ See the [`examples/`](examples/) directory for ready-to-use configs.
 | Vitest | `#6e9f18` | vitest |
 
 </details>
+
+---
+
+## 🧹 Line-Clear Finale
+
+By default, the board is one column wider than `board_columns`. After the normal skill pieces finish stacking, AI tool pieces (Cursor, Claude, Antigravity) drop into the gap column, completing rows that then flash and clear — just like real Tetris. The joke: AI tools overhauling your stack.
+
+- **Enabled by default.** Pass `--no-line-clear` or set `"line_clear": false` in your JSON config to disable.
+- **Configurable AI tools.** Override the default trio via `line_clear_skills` in JSON config or the `line_clear_skills` field on `Config`.
+- **Graceful degradation.** If the layout has no complete rows after the gap column fills, the AI tools still appear but no rows clear.
+- **`prefers-reduced-motion`** is respected for all line-clear animations.
 
 ---
 
@@ -248,7 +266,7 @@ Stacktris/
 ├── examples/                # JSON config examples
 ├── output/                  # Generated SVG files
 ├── docs/                    # Demo assets
-├── tests/                   # 53 tests (CLI, config, layout, generator)
+├── tests/                   # 77 tests (CLI, config, layout, generator, line-clear)
 ├── .github/workflows/       # CI (Python 3.10–3.13)
 ├── LICENSE                  # MIT (original code)
 ├── THIRD_PARTY_NOTICES.md   # Simple Icons CC0, trademark caveats

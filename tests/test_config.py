@@ -6,7 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from stacktris.config import Config, SkillEntry, default_config, load_config
+from stacktris.config import (
+    Config,
+    SkillEntry,
+    default_config,
+    default_line_clear_skills,
+    load_config,
+)
 
 
 class TestSkillEntry:
@@ -114,3 +120,62 @@ class TestLoadConfig:
             with pytest.raises(ValueError, match="not built-in"):
                 load_config(f.name)
         Path(f.name).unlink()
+
+    def test_load_line_clear_fields(self):
+        data = {
+            "skills": [{"label": "Python"}, {"label": "Docker"}],
+            "line_clear": False,
+        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            f.flush()
+            cfg = load_config(f.name)
+        assert cfg.line_clear is False
+        Path(f.name).unlink()
+
+    def test_load_line_clear_skills(self):
+        data = {
+            "skills": [{"label": "Python"}],
+            "line_clear_skills": [{"label": "Cursor"}],
+        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            f.flush()
+            cfg = load_config(f.name)
+        assert cfg.line_clear_skills is not None
+        assert cfg.line_clear_skills[0].label == "CURSOR"
+        Path(f.name).unlink()
+
+
+class TestLineClearConfig:
+    def test_default_line_clear_enabled(self):
+        cfg = default_config()
+        assert cfg.line_clear is True
+
+    def test_default_line_clear_skills_not_set(self):
+        cfg = default_config()
+        assert cfg.line_clear_skills is None
+
+    def test_get_line_clear_skills_defaults(self):
+        cfg = default_config()
+        lc = cfg.get_line_clear_skills()
+        assert len(lc) == 3
+        labels = {s.label for s in lc}
+        assert "CURSOR" in labels
+        assert "CLAUDE" in labels
+        assert "ANTIGRAVITY" in labels
+
+    def test_get_line_clear_skills_custom(self):
+        custom = [SkillEntry(label="MY AI", color="#ff0000", icon="cursor")]
+        cfg = Config(
+            skills=[SkillEntry(label="Python", color="#3776ab", icon="python")],
+            line_clear_skills=custom,
+        )
+        assert cfg.get_line_clear_skills() == custom
+
+    def test_default_line_clear_skills_helper(self):
+        skills = default_line_clear_skills()
+        assert len(skills) == 3
+        for s in skills:
+            assert s.color.startswith("#")
+            assert s.icon

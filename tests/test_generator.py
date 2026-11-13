@@ -118,3 +118,87 @@ class TestCustomConfig:
         svg, _ = _make_svg(cfg)
         assert "A &amp; B &lt;tools&gt;" in svg
         ET.fromstring(svg)
+
+
+class TestLineClear:
+    def test_valid_xml_with_line_clear(self):
+        svg, _ = _make_svg()
+        ET.fromstring(svg)
+
+    def test_extra_column_added(self):
+        cfg = default_config()
+        svg, _ = _make_svg(cfg)
+        root = ET.fromstring(svg)
+        expected_w = 40 * 2 + (cfg.board_columns + 1) * cfg.cell_size
+        assert root.get("width") == str(expected_w)
+
+    def test_no_extra_column_when_disabled(self):
+        cfg = default_config()
+        cfg.line_clear = False
+        svg, _ = _make_svg(cfg)
+        root = ET.fromstring(svg)
+        expected_w = 40 * 2 + cfg.board_columns * cfg.cell_size
+        assert root.get("width") == str(expected_w)
+
+    def test_ai_tool_keyframes_present(self):
+        svg, _ = _make_svg()
+        assert "@keyframes a0" in svg
+        assert "@keyframes a1" in svg
+        assert "@keyframes a2" in svg
+
+    def test_flash_keyframe(self):
+        svg, _ = _make_svg()
+        assert "@keyframes lc-flash" in svg
+
+    def test_fade_keyframe(self):
+        svg, _ = _make_svg()
+        assert "@keyframes lc-fade" in svg
+
+    def test_drop_keyframe(self):
+        svg, _ = _make_svg()
+        assert "@keyframes lc-drop-" in svg
+
+    def test_flash_rects_present(self):
+        svg, _ = _make_svg()
+        assert 'class="fl"' in svg
+
+    def test_line_clear_inner_wrappers(self):
+        svg, _ = _make_svg()
+        assert 'class="lc"' in svg
+
+    def test_ai_tools_in_description(self):
+        svg, _ = _make_svg()
+        assert "CURSOR" in svg
+        assert "CLAUDE" in svg
+        assert "ANTIGRAVITY" in svg
+
+    def test_no_line_clear_elements_when_disabled(self):
+        cfg = default_config()
+        cfg.line_clear = False
+        svg, _ = _make_svg(cfg)
+        assert "lc-flash" not in svg
+        assert "@keyframes a0" not in svg
+        assert 'class="fl"' not in svg
+
+    def test_longer_duration_with_line_clear(self):
+        cfg_on = default_config()
+        cfg_off = default_config()
+        cfg_off.line_clear = False
+        _, dur_on = _make_svg(cfg_on)
+        _, dur_off = _make_svg(cfg_off)
+        assert dur_on > dur_off
+
+    def test_reduced_motion_covers_line_clear(self):
+        svg, _ = _make_svg()
+        assert ".lc" in svg
+        assert ".fl" in svg
+        assert "animation:none!important" in svg
+
+    def test_small_set_with_line_clear(self):
+        skills = [
+            SkillEntry(label="PYTHON", color="#3776ab", icon="python"),
+            SkillEntry(label="REACT", color="#61dafb", icon="react"),
+        ]
+        cfg = Config(skills=skills, board_columns=6, line_clear=True)
+        svg, _ = _make_svg(cfg)
+        ET.fromstring(svg)

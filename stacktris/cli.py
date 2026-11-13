@@ -72,6 +72,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="title text shown at top of graphic (default: STACK)",
     )
     p.add_argument(
+        "--no-line-clear",
+        action="store_true",
+        help="disable the Tetris-style line-clear finale (AI tools filling the gap column)",
+    )
+    p.add_argument(
         "--list-skills",
         action="store_true",
         help="print supported built-in skill names and exit",
@@ -94,6 +99,8 @@ def main(argv: list[str] | None = None) -> int:
         except (ValueError, FileNotFoundError, KeyError) as e:
             print(f"error: config: {e}", file=sys.stderr)
             return 1
+        if args.no_line_clear:
+            cfg.line_clear = False
     elif args.skills:
         skills: list[SkillEntry] = []
         for name in args.skills:
@@ -115,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
             step=args.step,
             stagger=args.stagger,
             title=args.title,
+            line_clear=not args.no_line_clear,
         )
     else:
         cfg = default_config()
@@ -124,6 +132,8 @@ def main(argv: list[str] | None = None) -> int:
         cfg.step = args.step
         cfg.stagger = args.stagger
         cfg.title = args.title
+        if args.no_line_clear:
+            cfg.line_clear = False
 
     try:
         pieces, heights = pack_skills(cfg.skills, cfg.board_columns, cfg.seed)
